@@ -44,7 +44,7 @@
                     <th class="w-32 px-4 py-3">Date</th>
                     <th class="w-28 px-4 py-3">Claim ID</th>
                     <th class="px-4 py-3">Categories</th>
-                    <th class="w-40 px-4 py-3 text-right">Total Amount</th>
+                    <th class="w-40 px-4 py-3 text-left">Total Amount</th>
                     <th class="w-32 px-4 py-3">Status</th>
                 </tr>
             </thead>
@@ -54,7 +54,7 @@
                         <td class="px-4 py-3">{{ $claim->submitted_at->timezone($tz)->format('d/m/Y') }}</td>
                         <td class="px-4 py-3 font-mono">{{ $claim->claim_number }}</td>
                         <td class="px-4 py-3 text-slate-600">{{ $claim->categories_list }}</td>
-                        <td class="px-4 py-3 text-right font-semibold">RM {{ number_format($claim->total_amount, 2) }}</td>
+                        <td class="px-4 py-3 text-left font-semibold">RM {{ number_format($claim->total_amount, 2) }}</td>
                         <td class="px-4 py-3">
                             <span class="inline-block rounded-full border px-3 py-0.5 text-xs font-semibold {{ $badge[$claim->status] }}">{{ ucfirst($claim->status) }}</span>
                         </td>

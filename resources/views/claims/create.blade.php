@@ -11,7 +11,6 @@
     @csrf
 
     <h1 class="text-left text-5xl font-extrabold tracking-tight">CLAIM OF {{ $period }}</h1>
-    <p class="-mt-3 text-sm text-slate-500"><span class="font-bold text-red-600">*</span> Required</p>
 
     @if ($errors->any())
         <div class="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-800">
@@ -68,7 +67,7 @@
                 <col class="w-60"><col class="w-36"><col class="w-40"><col class="w-44"><col class="w-40"><col class="w-12"><col class="w-32">
             </colgroup>
             <thead>
-                <tr><th colspan="7" class="bg-slate-800 px-4 py-2 text-left text-white">Types of Claims allowed <span class="font-bold text-red-400">*</span> <span class="ml-2 text-xs font-normal text-slate-300">(fill in at least one)</span></th></tr>
+                <tr><th colspan="7" class="bg-slate-800 px-4 py-2 text-left text-white">Types of Claims allowed</th></tr>
             </thead>
             <tbody>
                 @foreach (config('claim_rates.rows') as $row)
@@ -84,15 +83,14 @@
                             {{-- 2 Tier name, 3 Rate, 4 Input + km, 5 blank --}}
                             <td class="px-2 py-2">{{ $row['tier'] }}</td>
                             <td class="px-2 py-2">{{ $row['rate_text'] }}</td>
-                            <td class="px-2 py-2">
-                                <div class="flex items-center gap-2">
+                            <td colspan="2" class="px-2 py-2">
+                                <div class="flex items-center justify-center gap-2">
                                     <input type="number" step="0.01" min="0" max="{{ $row['max'] }}"
                                            name="items[{{ $row['key'] }}]" x-model.number="form.{{ $row['key'] }}" @wheel="$el.blur()"
-                                           class="w-full min-w-0 rounded-none border-slate-500 py-1 text-right">
+                                           class="w-28 min-w-0 rounded-none border-slate-500 py-1 text-right">
                                     <span class="text-slate-600">km</span>
                                 </div>
                             </td>
-                            <td class="px-2 py-2"></td>
                         @else
                             {{-- 2 Input, 3 Unit, 4 Rate, 5 Rule --}}
                             <td class="px-2 py-2">
@@ -129,7 +127,7 @@
 
     {{-- Attachments --}}
     <section class="rounded-lg border-2 border-slate-800 bg-white p-6">
-        <h2 class="mb-3 text-lg font-bold">Attach Receipt or Proof <span class="text-sm font-normal text-slate-500">(optional)</span></h2>
+        <h2 class="mb-3 text-lg font-bold">Attach Receipt or Proof</h2>
 
         <div class="flex items-center gap-3">
             <label class="cursor-pointer rounded border border-slate-600 bg-slate-100 px-4 py-2 text-sm font-semibold hover:bg-slate-200">

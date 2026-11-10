@@ -12,6 +12,8 @@
     ];
     $left = ['full_name' => 'Full Name', 'designation' => 'Designation', 'department' => 'Department', 'staff_no' => 'Staff No', 'bank_account' => 'Bank & Account No'];
     $right = ['vehicle_reg_no' => 'Vehicle registration no', 'vehicle_type' => 'Type', 'vehicle_model' => 'Vehicle Model', 'vehicle_capacity' => 'Capacity', 'vehicle_ownership' => 'Ownership'];
+    // Display-only box (not an input): looks like the staff form's box but cannot be clicked or edited.
+    $box = 'min-h-[2rem] border border-slate-400 bg-slate-100 px-2 py-1 text-slate-800';
 @endphp
 
 <div x-data="{
@@ -24,6 +26,7 @@
         item(key, field) { const i = this.selectedClaim && this.selectedClaim.items[key]; return i ? i[field] : null; },
         fmt(n) { return n === null || n === undefined ? '' : Number(n).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
         qty(key) { const v = this.item(key, 'unit_input'); return v === null ? '' : Number(v).toLocaleString('en-MY', { maximumFractionDigits: 2 }); },
+        amt(key) { const v = this.item(key, 'amount'); return v === null ? '—' : this.fmt(v); },
      }"
      @keydown.escape.window="close()" class="mx-auto max-w-6xl space-y-6">
 
@@ -56,7 +59,7 @@
                 <tr>
                     <th class="px-4 py-3">Staff Name</th>
                     <th class="px-4 py-3">Employee ID</th>
-                    <th class="px-4 py-3 text-right">Total Claim Amount</th>
+                    <th class="px-4 py-3 text-left">Total Claim Amount</th>
                     <th class="px-4 py-3">Date Submitted</th>
                     <th class="px-4 py-3">Status</th>
                     <th class="px-4 py-3">Action</th>
@@ -67,7 +70,7 @@
                     <tr class="border-b last:border-0">
                         <td class="px-4 py-3 font-medium">{{ $claim->full_name }}</td>
                         <td class="px-4 py-3">{{ $claim->staff_no }}</td>
-                        <td class="px-4 py-3 text-right font-semibold">RM {{ number_format($claim->total_amount, 2) }}</td>
+                        <td class="px-4 py-3 text-left font-semibold">RM {{ number_format($claim->total_amount, 2) }}</td>
                         <td class="px-4 py-3">{{ $claim->submitted_at->timezone($tz)->format('d/m/Y') }}</td>
                         <td class="px-4 py-3">
                             <span class="inline-block rounded-full border px-3 py-0.5 text-xs font-semibold {{ $badge[$claim->status] }}">{{ ucfirst($claim->status) }}</span>
@@ -86,10 +89,10 @@
 
     <div>{{ $claims->links() }}</div>
 
-    {{-- ============ Review pop-up: same layout as the staff form, text only (no input boxes) ============ --}}
+    {{-- ============ Review pop-up: same layout as the staff form, view only ============ --}}
     <div x-show="openModal" x-cloak x-transition.opacity
          class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" @click.self="close()">
-        <div class="relative flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl" @click.stop>
+        <div class="relative flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl" @click.stop>
 
             {{-- Watermark --}}
             <div class="pointer-events-none absolute inset-0 flex select-none items-center justify-center overflow-hidden">
@@ -111,15 +114,15 @@
             <template x-if="selectedClaim">
                 <div class="relative flex-1 space-y-6 overflow-y-auto p-6">
 
-                    {{-- Employee info: details as plain text --}}
+                    {{-- Employee info: display boxes, dash when empty --}}
                     <section class="rounded-lg border-2 border-slate-800 p-5">
                         <div class="grid gap-x-8 gap-y-3 md:grid-cols-2">
                             @foreach ([$left, $right] as $col)
                                 <div class="space-y-3">
                                     @foreach ($col as $field => $label)
                                         <div>
-                                            <span class="block text-xs font-semibold text-slate-500">{{ $label }}</span>
-                                            <span class="block py-0.5 text-base font-medium" x-text="selectedClaim.{{ $field }} || '—'"></span>
+                                            <span class="mb-1 block text-xs font-semibold">{{ $label }}</span>
+                                            <div class="{{ $box }}" x-text="selectedClaim.{{ $field }} || '—'"></div>
                                         </div>
                                     @endforeach
                                 </div>
@@ -127,16 +130,16 @@
                         </div>
                     </section>
 
-                    {{-- Claims table: same 7 columns as the form, values as text --}}
-                    <section class="overflow-x-auto rounded-lg border-2 border-slate-800">
-                        <table class="w-full min-w-[56rem] table-fixed border-collapse text-sm">
+                    {{-- Claims table: same 7 columns as the form, fits the pop-up (no sideways scroll) --}}
+                    <section class="rounded-lg border-2 border-slate-800">
+                        <table class="w-full table-fixed border-collapse text-sm">
                             <colgroup>
-                                <col class="w-60"><col class="w-36"><col class="w-40"><col class="w-44"><col class="w-40"><col class="w-12"><col class="w-32">
+                                <col class="w-[22%]"><col class="w-[12%]"><col class="w-[15%]"><col class="w-[16%]"><col class="w-[15%]"><col class="w-[4%]"><col class="w-[16%]">
                             </colgroup>
                             <thead><tr><th colspan="7" class="bg-slate-800 px-4 py-2 text-left text-white">Types of Claims allowed</th></tr></thead>
                             <tbody>
                                 @foreach ($rows as $row)
-                                    @php $isMileage = $row['layout'] === 'mileage'; @endphp
+                                    @php $isMileage = $row['layout'] === 'mileage'; $k = $row['key']; @endphp
                                     <tr class="border-b border-slate-300 {{ $row['title'] ? 'border-t border-t-slate-400' : '' }}">
                                         <td class="px-3 py-2 align-middle">
                                             @if ($row['title']) <span class="block font-semibold">{{ $row['title'] }}</span> @endif
@@ -146,20 +149,21 @@
                                         @if ($isMileage)
                                             <td class="px-2 py-2">{{ $row['tier'] }}</td>
                                             <td class="px-2 py-2">{{ $row['rate_text'] }}</td>
-                                            <td class="px-2 py-2 text-right font-semibold">
-                                                <span x-text="qty('{{ $row['key'] }}')"></span>
-                                                <span class="font-normal text-slate-600" x-show="item('{{ $row['key'] }}', 'unit_input') !== null"> km</span>
+                                            <td colspan="2" class="px-2 py-2">
+                                                <div class="flex items-center justify-center gap-2">
+                                                    <div class="{{ $box }} w-28 min-w-0 text-right" x-text="qty('{{ $k }}') || '—'"></div>
+                                                    <span class="text-slate-600">km</span>
+                                                </div>
                                             </td>
-                                            <td class="px-2 py-2"></td>
                                         @else
-                                            <td class="px-2 py-2 text-right font-semibold" x-text="qty('{{ $row['key'] }}')"></td>
+                                            <td class="px-2 py-2"><div class="{{ $box }} text-right" x-text="qty('{{ $k }}') || '—'"></div></td>
                                             <td class="px-2 py-2 text-slate-600">{{ $row['unit'] }}</td>
                                             <td class="px-2 py-2">{{ $row['rate_text'] }}</td>
                                             <td class="px-2 py-2 text-slate-600">{{ $row['rule'] }}</td>
                                         @endif
 
                                         <td class="px-2 py-2 text-right font-semibold">RM</td>
-                                        <td class="px-2 py-2 text-right font-mono" x-text="item('{{ $row['key'] }}', 'amount') === null ? '–' : fmt(item('{{ $row['key'] }}', 'amount'))"></td>
+                                        <td class="px-2 py-2"><div class="{{ $box }} text-right font-mono" x-text="amt('{{ $k }}')"></div></td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -167,7 +171,7 @@
                                 <tr class="bg-slate-100">
                                     <td colspan="5" class="px-3 py-3 text-right font-extrabold">TOTAL</td>
                                     <td class="px-2 py-3 text-right font-semibold">RM</td>
-                                    <td class="px-2 py-3 text-right font-mono font-bold" x-text="fmt(selectedClaim.total_amount)"></td>
+                                    <td class="px-2 py-3"><div class="min-h-[2rem] border-2 border-slate-800 bg-white px-2 py-1 text-right font-mono font-bold" x-text="fmt(selectedClaim.total_amount)"></div></td>
                                 </tr>
                             </tfoot>
                         </table>
