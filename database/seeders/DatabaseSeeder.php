@@ -3,23 +3,33 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $admin = new User([
+            'name' => 'Apex Admin',
+            'email' => 'admin@apex.test',
+            'password' => 'password',
+            'staff_no' => 'ADM001',
+            'designation' => 'HR Manager',
+            'department' => 'Human Resources',
         ]);
+        $admin->role = 'admin';
+        $admin->save();
+
+        $staff = new User([
+            'name' => 'Ayuni Binti Ahmad',
+            'email' => 'ayuni@apex.test',
+            'password' => 'password',
+            'staff_no' => 'APX1024',
+            'designation' => 'Network Engineer',
+            'department' => 'Operations',
+            'bank_account' => 'Maybank 1140 2233 4455',
+        ]);
+        $staff->role = 'staff';
+        $staff->save();
     }
 }

@@ -1,9 +1,31 @@
 @import 'tailwindcss';
+@plugin '@tailwindcss/forms';
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
+@source '../views/**/*.blade.php';
+@source '../js/**/*.js';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
+
+/* Tailwind 4 changed the default border colour; keep the familiar light grey. */
+@layer base {
+    *,
+    ::after,
+    ::before {
+        border-color: var(--color-gray-200, currentColor);
+    }
+}
+
+/* Number boxes: no up/down arrows, staff just type. */
+input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+[x-cloak] { display: none !important; }
