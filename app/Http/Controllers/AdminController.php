@@ -47,7 +47,7 @@ class AdminController extends Controller
             'years' => $years,
             'month' => $month,
             'year' => $year,
-            'rows' => config('claim_rates.rows'),
+            'rows' => \App\Services\ClaimCalculator::displayRows(),
         ]);
     }
 

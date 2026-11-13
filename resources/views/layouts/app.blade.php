@@ -53,8 +53,9 @@
             </aside>
             </div>
 
-            {{-- Main --}}
-            <main class="min-w-0 flex-1 overflow-y-auto overscroll-contain bg-[#263c76] p-8">
+            {{-- Main: second floating panel, same rounded corners and blue margin as the sidebar --}}
+            <div class="flex min-w-0 flex-1 p-3">
+            <main class="min-w-0 flex-1 overflow-y-auto overscroll-contain rounded-3xl bg-[#edf1f8] px-8 pb-4 pt-8 shadow-lg">
                 @if (session('status'))
                     <div class="mb-4 rounded-md border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-800">{{ session('status') }}</div>
                 @endif
@@ -64,6 +65,7 @@
 
                 @yield('content')
             </main>
+            </div>
         </div>
 </div>
 </body>

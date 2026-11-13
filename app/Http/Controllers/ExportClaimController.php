@@ -15,14 +15,13 @@ class ExportClaimController extends Controller
             'year' => ['nullable', 'integer', 'between:2000,2100'],
         ]);
 
-        $month = $data['month'] ?? null;
-        $year = $data['year'] ?? null;
+        [$month, $year] = \App\Exports\ExportHelper::resolvePeriod(
+            isset($data['month']) ? (int) $data['month'] : null,
+            isset($data['year']) ? (int) $data['year'] : null
+        );
 
-        $name = 'apex-claims'
-            .($year ? "-{$year}" : '')
-            .($month ? sprintf('-%02d', $month) : '')
-            .'.xlsx';
+        $name = sprintf('apex-claims-%d-%02d.xlsx', $year, $month);
 
-        return Excel::download(new ClaimsExport($month ? (int) $month : null, $year ? (int) $year : null), $name);
+        return Excel::download(new ClaimsExport($month, $year), $name);
     }
 }

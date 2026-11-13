@@ -31,6 +31,20 @@ export default function claimView(claims) {
             const v = this.item(key, 'amount');
             return v === null ? '—' : this.fmt(v);
         },
+        noteOf(key) {
+            const d = this.item(key, 'description') || '';
+            return d.startsWith('Other: ') ? d.slice(7) : '';
+        },
+        // Valid (not declined) Travelling lines added together; includes an old single Travelling entry.
+        get travellingTotal() {
+            if (!this.selectedClaim) return 0;
+            return Object.entries(this.selectedClaim.items)
+                .filter(([k, i]) => k.startsWith('travelling') && !i.disallowed)
+                .reduce((a, [, i]) => a + i.amount, 0);
+        },
+        get hasTravelling() {
+            return !!this.selectedClaim && Object.keys(this.selectedClaim.items).some((k) => k.startsWith('travelling'));
+        },
         isOut(key) {
             return this.item(key, 'disallowed') === true;
         },

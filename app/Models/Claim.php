@@ -15,6 +15,7 @@ class Claim extends Model
         'user_id',
         'full_name', 'designation', 'department', 'staff_no', 'bank_account',
         'vehicle_reg_no', 'vehicle_type', 'vehicle_model', 'vehicle_capacity', 'vehicle_ownership',
+        'trip_from', 'trip_to', 'trip_date', 'trip_job',
         'total_amount', 'submitted_at', 'claim_month', 'claim_year',
     ];
 
@@ -26,6 +27,7 @@ class Claim extends Model
         return [
             'total_amount' => 'decimal:2',
             'submitted_at' => 'datetime',
+            'trip_date' => 'date',
             'reviewed_at' => 'datetime',
         ];
     }
@@ -127,11 +129,16 @@ class Claim extends Model
             'vehicle_model' => $this->vehicle_model,
             'vehicle_capacity' => $this->vehicle_capacity,
             'vehicle_ownership' => $this->vehicle_ownership,
+            'trip_from' => $this->trip_from,
+            'trip_to' => $this->trip_to,
+            'trip_date' => $this->trip_date ? $this->trip_date->format('d/m/Y') : null,
+            'trip_job' => $this->trip_job,
             'total_amount' => $forStaff ? $this->staff_total : (float) $this->total_amount,
             'claimed_total' => $this->claimed_total,
             'items' => $this->items->mapWithKeys(fn ($i) => [
                 $i->item_key => [
                     'id' => $i->id,
+                    'description' => $i->description,
                     'unit_input' => (float) $i->unit_input,
                     'amount' => (float) $i->amount,
                     'disallowed' => $showMarks && (bool) $i->disallowed,

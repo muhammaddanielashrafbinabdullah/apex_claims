@@ -16,7 +16,7 @@
 @endphp
 
 <div x-data="claimView(@js($payload))" @keydown.escape.window="close()" class="mx-auto max-w-6xl space-y-6">
-    <h1 class="text-white text-4xl font-extrabold tracking-tight">HISTORY</h1>
+    <x-page-title bold="HISTORY" />
 
     {{-- Action bar --}}
     <form method="GET" action="{{ route('claims.history') }}" class="flex flex-wrap items-center gap-3">
@@ -137,6 +137,23 @@
 </section>
 
                     
+                    {{-- Trip details --}}
+                    <section class="overflow-hidden rounded-lg border-2 border-slate-800">
+<div class="bg-slate-800 px-4 py-2 text-left font-bold text-white">Trip Details</div>
+<div class="p-5">
+                        <span class="mb-2 block text-xs font-bold">Destination</span>
+                        <div class="grid items-end gap-4 md:grid-cols-[1fr_auto_1fr]">
+                            <div><span class="mb-1 block text-xs font-semibold">From</span><div class="{{ $box }}" x-text="selectedClaim.trip_from || '—'"></div></div>
+                            <div class="hidden pb-2 text-slate-500 md:block"><x-heroicon-o-arrow-long-right class="h-7 w-7" /></div>
+                            <div><span class="mb-1 block text-xs font-semibold">To</span><div class="{{ $box }}" x-text="selectedClaim.trip_to || '—'"></div></div>
+                        </div>
+                        <div class="mt-3 md:w-1/3"><span class="mb-1 block text-xs font-bold">Date</span>
+                            <div class="{{ $box }}" x-text="selectedClaim.trip_date || '—'"></div></div>
+                        <div class="mt-3"><span class="mb-1 block text-xs font-semibold">Job Description &amp; Location</span>
+                            <div class="{{ $box }} whitespace-pre-line" x-text="selectedClaim.trip_job || '—'"></div></div>
+</div>
+                    </section>
+
                     {{-- Claims table: same 7 columns as the form, fits the pop-up (no sideways scroll) --}}
                     <section class="rounded-lg border-2 border-slate-800">
                         <table class="w-full table-fixed border-collapse text-sm">
@@ -145,13 +162,27 @@
                             </colgroup>
                             <thead><tr><th colspan="7" class="bg-slate-800 px-4 py-2 text-left text-white">Types of Claims allowed</th></tr></thead>
                             <tbody>
+                                @php $travelHeadingDone = false; @endphp
                                 @foreach ($rows as $row)
                                     @php $isMileage = $row['layout'] === 'mileage'; $k = $row['key']; @endphp
+                                    @if (in_array($k, ['travelling', 'travelling_fuel']) && ! $travelHeadingDone)
+                                        @php $travelHeadingDone = true; @endphp
+                                        <tr class="border-b border-t border-slate-300 border-t-slate-400">
+                                            <td colspan="5" class="px-3 py-2 font-semibold">Travelling</td>
+                                            <td class="px-2 py-2 text-right font-semibold">RM</td>
+                                            <td class="px-2 py-2"><div class="{{ $box }} text-right font-mono font-semibold" x-text="hasTravelling ? fmt(travellingTotal) : '—'"></div></td>
+                                        </tr>
+                                    @endif
                                     <tr class="border-b border-slate-300 {{ $row['title'] ? 'border-t border-t-slate-400' : '' }}"
+                                        @if (! empty($row['legacy'])) x-show="item('{{ $k }}', 'id')" x-cloak @endif
                                         :class="isOut('{{ $k }}') && 'bg-slate-100 text-slate-400'">
                                         <td class="px-3 py-2 align-middle">
                                             @if ($row['title']) <span class="block font-semibold">{{ $row['title'] }}</span> @endif
                                             @if ($row['sub']) <span class="block text-xs font-normal text-slate-500">{{ $row['sub'] }}</span> @endif
+                                            @if (! empty($row['part']) && empty($row['text'])) <span class="block pl-4 text-slate-700">{{ $row['part'] }}</span> @endif
+                                            @if (! empty($row['text']))
+                                                <span class="block pl-4 text-slate-700" x-text="noteOf('{{ $k }}') || 'Other'"></span>
+                                            @endif
                                         </td>
 
                                         @if ($isMileage)

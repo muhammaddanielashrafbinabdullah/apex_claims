@@ -7,10 +7,12 @@
 
 @section('content')
 <form method="POST" action="{{ route('claims.store') }}" enctype="multipart/form-data"
-      x-data="claimCalculator(@js(old('items', [])))" @submit="validate($event)" class="mx-auto max-w-6xl space-y-6">
+      x-data="claimCalculator(@js(old('items', [])), @js(old('notes', [])))" @submit="validate($event)" class="mx-auto max-w-6xl space-y-6">
     @csrf
 
-    <h1 class="text-white text-left text-5xl font-extrabold tracking-tight">CLAIM OF {{ $period }}</h1>
+    {{-- First screen: the title and the Claimant Details box fill the visible area, so Trip Details starts below the fold. --}}
+    <div class="flex min-h-[calc(100vh-72px)] flex-col gap-6">
+    <x-page-title light="CLAIM OF" :bold="$period" />
 
     @if ($errors->any())
         <div class="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-800">
@@ -21,9 +23,9 @@
     @endif
 
     {{-- Employee info (all boxes start empty) --}}
-    <section class="overflow-hidden rounded-lg border-2 border-slate-800 bg-white">
+    <section class="flex flex-1 flex-col overflow-hidden rounded-lg border-2 border-slate-800 bg-white">
 <div class="bg-slate-800 px-4 py-2 text-left font-bold text-white">Claimant Details</div>
-<div class="p-6">
+<div class="flex flex-1 flex-col p-6">
         @php
             $left = [
                 'full_name' => 'Full Name',
@@ -40,8 +42,8 @@
                 'vehicle_ownership' => 'Ownership',
             ];
         @endphp
-        <div class="grid gap-x-10 gap-y-4 md:grid-cols-2">
-            <div class="space-y-4">
+        <div class="grid flex-1 gap-x-10 gap-y-4 md:grid-cols-2">
+            <div class="flex flex-col justify-between gap-4">
                 @foreach ($left as $name => $label)
                     <label class="block">
                         <span class="mb-1 block text-sm font-semibold">{{ $label }} <span class="font-bold text-red-600">*</span></span>
@@ -50,7 +52,7 @@
                     </label>
                 @endforeach
             </div>
-            <div class="space-y-4">
+            <div class="flex flex-col justify-between gap-4">
                 @foreach ($right as $name => $label)
                     <label class="block">
                         <span class="mb-1 block text-sm font-semibold">{{ $label }}</span>
@@ -62,6 +64,34 @@
         </div>
     </div>
 </section>
+    </div>
+
+    {{-- Trip details (optional, never required) --}}
+    <section class="overflow-hidden rounded-lg border-2 border-slate-800 bg-white">
+        <div class="bg-slate-800 px-4 py-2 text-left font-bold text-white">Trip Details</div>
+        <div class="p-6">
+            <span class="mb-2 block text-sm font-bold">Destination</span>
+            <div class="grid items-end gap-4 md:grid-cols-[1fr_auto_1fr]">
+                <label class="block">
+                    <span class="mb-1 block text-sm font-semibold">From</span>
+                    <input type="text" name="trip_from" value="{{ old('trip_from') }}" maxlength="255" autocomplete="off" class="w-full rounded-none border-slate-500">
+                </label>
+                <div class="hidden pb-2 text-slate-500 md:block"><x-heroicon-o-arrow-long-right class="h-7 w-7" /></div>
+                <label class="block">
+                    <span class="mb-1 block text-sm font-semibold">To</span>
+                    <input type="text" name="trip_to" value="{{ old('trip_to') }}" maxlength="255" autocomplete="off" class="w-full rounded-none border-slate-500">
+                </label>
+            </div>
+            <label class="mt-4 block md:w-1/3">
+                <span class="mb-1 block text-sm font-bold">Date</span>
+                <input type="date" name="trip_date" value="{{ old('trip_date') }}" class="w-full rounded-none border-slate-500">
+            </label>
+            <label class="mt-4 block">
+                <span class="mb-1 block text-sm font-semibold">Job Description &amp; Location</span>
+                <textarea name="trip_job" rows="2" maxlength="1000" class="w-full rounded-none border-slate-500">{{ old('trip_job') }}</textarea>
+            </label>
+        </div>
+    </section>
 
     {{-- Claims table: 7 columns --}}
     <section class="overflow-x-auto rounded-lg border-2 border-slate-800 bg-white">
@@ -73,13 +103,29 @@
                 <tr><th colspan="7" class="bg-slate-800 px-4 py-2 text-left text-white">Types of Claims allowed</th></tr>
             </thead>
             <tbody>
+                @php $travelHeadingDone = false; @endphp
                 @foreach (config('claim_rates.rows') as $row)
                     @php $isMileage = $row['layout'] === 'mileage'; @endphp
+                    @if ($row['key'] === 'travelling_fuel')
+                        {{-- Travelling heading line with the running total --}}
+                        <tr class="border-b border-t border-slate-300 border-t-slate-400">
+                            <td colspan="5" class="px-3 py-2 font-semibold">Travelling</td>
+                            <td class="px-2 py-2 text-right font-semibold">RM</td>
+                            <td class="px-2 py-2"><div class="border border-slate-500 bg-slate-100 px-2 py-1 text-right font-mono font-semibold" x-text="fmt(travellingTotal)">0.00</div></td>
+                        </tr>
+                    @endif
                     <tr class="border-b border-slate-300 {{ $row['title'] ? 'border-t border-t-slate-400' : '' }}">
                         {{-- 1 Description --}}
                         <td class="px-3 py-2 align-middle">
                             @if ($row['title']) <span class="block font-semibold">{{ $row['title'] }}</span> @endif
                             @if ($row['sub']) <span class="block text-xs font-normal text-slate-500">{{ $row['sub'] }}</span> @endif
+                            @if (! empty($row['part']) && empty($row['text'])) <span class="block pl-4 text-slate-700">{{ $row['part'] }}</span> @endif
+                            @if (! empty($row['text']))
+                                <div class="pl-4">
+                                    <input type="text" name="notes[{{ $row['key'] }}]" x-model="notes.{{ $row['key'] }}" maxlength="100" autocomplete="off"
+                                           placeholder="Other (please specify)" class="w-full rounded-none border-slate-500 py-1 text-sm">
+                                </div>
+                            @endif
                         </td>
 
                         @if ($isMileage)
@@ -171,7 +217,7 @@
     <p x-show="submitError" x-cloak x-text="submitError" class="rounded-lg bg-white px-4 py-2 text-sm font-medium text-red-600"></p>
 
     <button type="submit" :disabled="submitting"
-            class="w-full rounded-lg bg-white py-4 text-lg font-bold uppercase tracking-wider text-[#263c76] hover:bg-slate-100 disabled:opacity-60">
+            class="w-full rounded-lg bg-slate-900 py-4 text-lg font-bold uppercase tracking-wider text-white hover:bg-slate-700 disabled:opacity-60">
         <span x-text="submitting ? 'Submitting…' : 'Submit Claim'">Submit Claim</span>
     </button>
     {{-- File preview pop-up (shows the chosen file before it is submitted) --}}

@@ -1,7 +1,7 @@
 // Alpine.js reactive claim calculator.
 // Reads the same rate matrix as the server (config/claim_rates.php -> window.CLAIM_RATES).
 
-export default function claimCalculator(old = {}) {
+export default function claimCalculator(old = {}, oldNotes = {}) {
     const config = window.CLAIM_RATES;
     const allowedExt = config.allowed_mimes.map((e) => e.toLowerCase()); // pdf, jpg, jpeg
     const allowedMime = ['application/pdf', 'image/jpeg'];
@@ -10,6 +10,7 @@ export default function claimCalculator(old = {}) {
     return {
         rows: config.rows,
         form: Object.fromEntries(config.rows.map((r) => [r.key, old[r.key] ?? ''])),
+        notes: { travelling_other: oldNotes.travelling_other ?? '' },
         files: [],
         previewFile: null,
         previewUrl: '',
@@ -53,6 +54,14 @@ export default function claimCalculator(old = {}) {
             const out = {};
             this.rows.forEach((r) => (out[r.key] = this.amountFor(r)));
             return out;
+        },
+        // Fuel + Toll + Parking + Other
+        get travellingTotal() {
+            return this.round(
+                Object.entries(this.amounts)
+                    .filter(([k]) => k.startsWith('travelling_'))
+                    .reduce((a, [, v]) => a + v, 0)
+            );
         },
         get total() {
             return this.round(Object.values(this.amounts).reduce((a, b) => a + b, 0));

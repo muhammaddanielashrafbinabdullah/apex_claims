@@ -37,6 +37,12 @@ $hardship = fn (string $key, string $group, ?string $title, float $rate, int $ho
     'max' => 31,
 ];
 
+// One part of the Travelling claim (Fuel / Toll / Parking / Other). Saved under the "Travelling" category.
+$travel = fn (string $key, string $part, ?string $title, bool $text = false) => array_merge(
+    $receipt($key, 'Travelling'),
+    ['label' => 'Travelling – '.$part, 'title' => $title, 'part' => $part, 'text' => $text]
+);
+
 $mileage = fn (string $key, string $group, ?string $title, string $tier, float $rate) => [
     'key' => $key, 'group' => $group, 'label' => $tier,
     'title' => $title, 'sub' => null,
@@ -108,11 +114,20 @@ return [
         $mileage('moto_subsequent', 'Motorcycle Mileage', null, 'Subsequent km', 0.45),
 
         // Receipt-backed claims
-        $receipt('travelling', 'Travelling', '(Fuel, Toll, Parking, Taxi Fare etc)'),
+        $travel('travelling_fuel', 'Fuel', null),
+        $travel('travelling_toll', 'Toll', null),
+        $travel('travelling_parking', 'Parking', null),
+        $travel('travelling_other', 'Other', null, true),
         $receipt('entertainment', 'Entertainment'),
         $receipt('project_purchases', 'Project Purchases'),
         $receipt('accommodation', 'Accommodation'),
         $receipt('insurance_roadtax', 'Insurance & Roadtax'),
         $receipt('vehicle_upkeep', 'Vehicle Upkeep'),
+    ],
+
+    // Claims submitted before Travelling was split into parts keep their single Travelling amount.
+    // Shown (read-only) in the review pop-ups only; never used by the form or the calculator.
+    'legacy_rows' => [
+        array_merge($receipt('travelling', 'Travelling'), ['title' => null, 'part' => 'Earlier entry', 'legacy' => true]),
     ],
 ];

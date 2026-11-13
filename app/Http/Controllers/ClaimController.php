@@ -35,6 +35,14 @@ class ClaimController extends Controller
             'vehicle_capacity' => ['nullable', 'string', 'max:50'],
             'vehicle_ownership' => ['nullable', 'string', 'max:50'],
 
+            // Trip details are optional.
+            'trip_from' => ['nullable', 'string', 'max:255'],
+            'trip_to' => ['nullable', 'string', 'max:255'],
+            'trip_date' => ['nullable', 'date'],
+            'trip_job' => ['nullable', 'string', 'max:1000'],
+            'notes' => ['nullable', 'array'],
+            'notes.travelling_other' => ['nullable', 'string', 'max:100'],
+
             'items' => ['required', 'array'],
 
             // Receipts/proof are optional (any number of files, 10 MB each).
@@ -58,7 +66,7 @@ class ClaimController extends Controller
         ]);
 
         // Recalculate server-side: any total sent by the browser is ignored.
-        $result = $calculator->calculate($data['items']);
+        $result = $calculator->calculate($data['items'], $data['notes'] ?? []);
         if ($result['total'] <= 0) {
             throw ValidationException::withMessages(['items' => 'Enter at least one claim item with a value above zero.']);
         }
@@ -82,6 +90,10 @@ class ClaimController extends Controller
                     'vehicle_model' => $data['vehicle_model'] ?? null,
                     'vehicle_capacity' => $data['vehicle_capacity'] ?? null,
                     'vehicle_ownership' => $data['vehicle_ownership'] ?? null,
+                    'trip_from' => $data['trip_from'] ?? null,
+                    'trip_to' => $data['trip_to'] ?? null,
+                    'trip_date' => $data['trip_date'] ?? null,
+                    'trip_job' => $data['trip_job'] ?? null,
                     'total_amount' => $result['total'],
                     'submitted_at' => $now,
                     'claim_month' => $local->month,
@@ -141,7 +153,7 @@ class ClaimController extends Controller
             'claims' => $claims,
             'payload' => $payload,
             'years' => $years,
-            'rows' => config('claim_rates.rows'),
+            'rows' => \App\Services\ClaimCalculator::displayRows(),
         ]);
     }
 
