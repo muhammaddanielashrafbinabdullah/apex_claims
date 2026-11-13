@@ -9,6 +9,11 @@ class AuthController extends Controller
 {
     public function showLogin()
     {
+        // Already logged in? Go to the right start page for this role.
+        if (auth()->check()) {
+            return redirect()->route(auth()->user()->isAdmin() ? 'admin.dashboard' : 'claims.create');
+        }
+
         return view('auth.login');
     }
 
@@ -25,7 +30,7 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(auth()->user()->isAdmin() ? route('admin.dashboard') : route('dashboard'));
+        return redirect()->intended(auth()->user()->isAdmin() ? route('admin.dashboard') : route('claims.create'));
     }
 
     public function logout(Request $request)

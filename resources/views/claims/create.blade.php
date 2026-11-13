@@ -10,7 +10,7 @@
       x-data="claimCalculator(@js(old('items', [])))" @submit="validate($event)" class="mx-auto max-w-6xl space-y-6">
     @csrf
 
-    <h1 class="text-left text-5xl font-extrabold tracking-tight">CLAIM OF {{ $period }}</h1>
+    <h1 class="text-white text-left text-5xl font-extrabold tracking-tight">CLAIM OF {{ $period }}</h1>
 
     @if ($errors->any())
         <div class="rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-800">
@@ -21,7 +21,9 @@
     @endif
 
     {{-- Employee info (all boxes start empty) --}}
-    <section class="rounded-lg border-2 border-slate-800 bg-white p-6">
+    <section class="overflow-hidden rounded-lg border-2 border-slate-800 bg-white">
+<div class="bg-slate-800 px-4 py-2 text-left font-bold text-white">Claimant Details</div>
+<div class="p-6">
         @php
             $left = [
                 'full_name' => 'Full Name',
@@ -58,7 +60,8 @@
                 @endforeach
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
     {{-- Claims table: 7 columns --}}
     <section class="overflow-x-auto rounded-lg border-2 border-slate-800 bg-white">
@@ -126,11 +129,12 @@
     </section>
 
     {{-- Attachments --}}
-    <section class="rounded-lg border-2 border-slate-800 bg-white p-6">
-        <h2 class="mb-3 text-lg font-bold">Attach Receipt or Proof</h2>
+    <section class="overflow-hidden rounded-lg border-2 border-slate-800 bg-white">
+<div class="bg-slate-800 px-4 py-2 text-left font-bold text-white">Receipts & Proof</div>
+<div class="p-6">
 
         <div class="flex items-center gap-3">
-            <label class="cursor-pointer rounded border border-slate-600 bg-slate-100 px-4 py-2 text-sm font-semibold hover:bg-slate-200">
+            <label class="relative cursor-pointer rounded border border-slate-600 bg-slate-100 px-4 py-2 text-sm font-semibold hover:bg-slate-200">
                 Choose File
                 <input type="file" name="attachments[]" x-ref="fileInput" multiple accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
                        class="sr-only" @change="addFiles($event)">
@@ -141,26 +145,54 @@
 
         <p x-show="fileError" x-cloak x-text="fileError" class="mt-2 text-sm text-red-600"></p>
 
-        <ul class="mt-4 flex flex-wrap gap-2">
+        <ul class="mt-4 flex flex-col gap-2">
             <template x-for="(file, i) in files" :key="file.name + file.size">
-                <li class="flex items-center gap-2 rounded-full border border-slate-400 bg-slate-100 py-1 pl-3 pr-1 text-sm">
-                    <span x-show="isPdf(file)" class="rounded bg-red-600 px-1 text-[10px] font-bold text-white">PDF</span>
-                    <span x-show="!isPdf(file)" class="rounded bg-blue-600 px-1 text-[10px] font-bold text-white">JPG</span>
-                    <span x-text="file.name" class="max-w-[16rem] truncate"></span>
+                <li class="flex h-14 w-full max-w-xl items-center gap-1 rounded-full border border-slate-400 bg-slate-100 pl-2 pr-2 text-sm">
+                    <button type="button" @click="openPreview(file)" title="Click to preview this file"
+                            class="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-full pl-1 pr-3 text-left hover:bg-slate-200">
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded bg-white">
+                            <img x-show="!isPdf(file)" :src="isPdf(file) ? '' : urlFor(file)" alt="" class="h-full w-full object-cover">
+                            <span x-show="isPdf(file)" class="flex h-full w-full items-center justify-center bg-red-600 text-[10px] font-bold text-white">PDF</span>
+                        </span>
+                        <span class="w-11 shrink-0 rounded py-0.5 text-center text-[10px] font-bold text-white"
+                              :class="isPdf(file) ? 'bg-red-600' : 'bg-blue-600'" x-text="isPdf(file) ? 'PDF' : 'JPG'"></span>
+                        <span x-text="file.name" class="min-w-0 flex-1 truncate underline decoration-dotted"></span>
+                    </button>
                     <button type="button" @click="removeFile(i)" aria-label="Remove file"
-                            class="rounded-full p-1 text-slate-500 hover:bg-slate-300 hover:text-slate-900">
+                            class="shrink-0 rounded-full p-1 text-slate-500 hover:bg-slate-300 hover:text-slate-900">
                         <x-heroicon-s-x-mark class="h-4 w-4" />
                     </button>
                 </li>
             </template>
         </ul>
-    </section>
+    </div>
+</section>
 
-    <p x-show="submitError" x-cloak x-text="submitError" class="text-sm font-medium text-red-600"></p>
+    <p x-show="submitError" x-cloak x-text="submitError" class="rounded-lg bg-white px-4 py-2 text-sm font-medium text-red-600"></p>
 
     <button type="submit" :disabled="submitting"
-            class="w-full rounded-lg bg-slate-900 py-4 text-lg font-bold uppercase tracking-wider text-white hover:bg-slate-700 disabled:opacity-60">
+            class="w-full rounded-lg bg-white py-4 text-lg font-bold uppercase tracking-wider text-[#263c76] hover:bg-slate-100 disabled:opacity-60">
         <span x-text="submitting ? 'Submitting…' : 'Submit Claim'">Submit Claim</span>
     </button>
+    {{-- File preview pop-up (shows the chosen file before it is submitted) --}}
+    <div x-show="previewFile" x-cloak x-transition.opacity @keydown.escape.window="closePreview()"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" @click.self="closePreview()">
+        <div class="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl" @click.stop>
+            <div class="flex items-center justify-between border-b px-5 py-3">
+                <span class="truncate font-semibold" x-text="previewFile ? previewFile.name : ''"></span>
+                <button type="button" @click="closePreview()" class="rounded-full p-1.5 hover:bg-slate-200" aria-label="Close preview">
+                    <x-heroicon-o-x-mark class="h-6 w-6" />
+                </button>
+            </div>
+            <div class="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-slate-100 p-3">
+                <template x-if="previewFile && !isPdf(previewFile)">
+                    <img :src="previewUrl" alt="Preview" class="max-h-[78vh] max-w-full object-contain">
+                </template>
+                <template x-if="previewFile && isPdf(previewFile)">
+                    <iframe :src="previewUrl" class="h-[78vh] w-full bg-white" title="PDF preview"></iframe>
+                </template>
+            </div>
+        </div>
+    </div>
 </form>
 @endsection

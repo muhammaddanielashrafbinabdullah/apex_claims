@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ClaimItem extends Model
 {
+    // The disallow_* fields are NOT mass-assignable: only AdminController sets them (forceFill).
     protected $fillable = ['claim_id', 'item_key', 'category', 'description', 'unit_input', 'amount'];
 
     protected function casts(): array
@@ -14,6 +15,8 @@ class ClaimItem extends Model
         return [
             'unit_input' => 'decimal:2',
             'amount' => 'decimal:2',
+            'disallowed' => 'boolean',
+            'disallowed_at' => 'datetime',
         ];
     }
 

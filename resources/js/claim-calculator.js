@@ -11,6 +11,9 @@ export default function claimCalculator(old = {}) {
         rows: config.rows,
         form: Object.fromEntries(config.rows.map((r) => [r.key, old[r.key] ?? ''])),
         files: [],
+        previewFile: null,
+        previewUrl: '',
+        urls: {}, // object URLs so staff can preview a file on their own computer before submitting
         fileError: '',
         submitError: '',
         submitting: false,
@@ -84,7 +87,32 @@ export default function claimCalculator(old = {}) {
             if (rejected.length) this.fileError = 'Not added: ' + rejected.join(', ');
             this.syncInput();
         },
+        fileKey(file) {
+            return file.name + '|' + file.size;
+        },
+        urlFor(file) {
+            const k = this.fileKey(file);
+            if (!this.urls[k]) this.urls[k] = URL.createObjectURL(file);
+            return this.urls[k];
+        },
+        openPreview(file) {
+            this.previewFile = file;
+            this.previewUrl = this.urlFor(file);
+        },
+        closePreview() {
+            this.previewFile = null;
+            this.previewUrl = '';
+        },
         removeFile(index) {
+            const gone = this.files[index];
+            if (gone) {
+                const k = this.fileKey(gone);
+                if (this.previewFile && this.fileKey(this.previewFile) === k) this.closePreview();
+                if (this.urls[k]) {
+                    URL.revokeObjectURL(this.urls[k]);
+                    delete this.urls[k];
+                }
+            }
             this.files.splice(index, 1);
             this.fileError = '';
             this.syncInput();

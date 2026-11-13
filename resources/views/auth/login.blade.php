@@ -10,8 +10,7 @@
 <body class="flex min-h-screen items-center justify-center bg-slate-900 font-sans">
     <form method="POST" action="{{ url('/login') }}" class="w-full max-w-sm space-y-5 rounded-xl bg-white p-8 shadow-2xl">
         @csrf
-        <h1 class="text-center text-3xl font-extrabold tracking-[0.3em]">APEX</h1>
-        <p class="text-center text-sm text-slate-500">Expense claims portal</p>
+        <img src="{{ asset('images/logo.png') }}" alt="Apex Claims Portal" class="mx-auto h-auto w-56">
 
         <div>
             <label class="mb-1 block text-sm font-medium">Email</label>

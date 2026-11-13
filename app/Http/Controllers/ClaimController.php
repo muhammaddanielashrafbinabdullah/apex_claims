@@ -13,22 +13,6 @@ use Illuminate\Validation\ValidationException;
 
 class ClaimController extends Controller
 {
-    public function dashboard(Request $request)
-    {
-        $user = $request->user();
-        $claims = $user->claims();
-        $today = now(config('claim_rates.timezone'));
-
-        return view('dashboard', [
-            'pending' => (clone $claims)->where('status', 'pending')->count(),
-            'approved' => (clone $claims)->where('status', 'approved')->count(),
-            'monthTotal' => (clone $claims)
-                ->where('claim_month', $today->month)->where('claim_year', $today->year)
-                ->sum('total_amount'),
-            'recent' => $user->claims()->latest('submitted_at')->limit(5)->get(),
-        ]);
-    }
-
     public function create(Request $request)
     {
         // Heading "CLAIM OF <MONTH YEAR>" follows the calendar (Malaysia time) on every page load.
@@ -137,36 +121,28 @@ class ClaimController extends Controller
     public function history(Request $request)
     {
         $user = $request->user();
-        $search = trim((string) $request->query('q', ''));
 
         $claims = $user->claims()
-            ->with('items')
+            ->with(['items', 'attachments'])
             ->forPeriod($request->query('month'), $request->query('year'))
-            ->when($search !== '', function ($q) use ($search) {
-                $q->where(function ($q) use ($search) {
-                    $q->where('id', 'like', '%'.ltrim($search, '0').'%')
-                        ->orWhere('status', 'like', "%{$search}%")
-                        ->orWhereHas('items', fn ($i) => $i->where('category', 'like', "%{$search}%"));
-                });
-            })
             ->latest('submitted_at')
             ->paginate(10)
             ->withQueryString();
 
-        // Monthly total counts all claims of the current month (any status).
-        $today = now(config('claim_rates.timezone'));
-        $monthTotal = $user->claims()
-            ->where('claim_month', $today->month)
-            ->where('claim_year', $today->year)
-            ->sum('total_amount');
-        $monthLabel = strtoupper($today->format('F Y'));
+        // Compact data for the read-only claim pop-up (disallow marks only on approved claims).
+        $payload = $claims->getCollection()->map(fn ($c) => $c->reviewPayload(true))->values();
 
         $years = $user->claims()->select('claim_year')->distinct()->orderByDesc('claim_year')->pluck('claim_year');
         if ($years->isEmpty()) {
             $years = collect([now()->year]);
         }
 
-        return view('claims.history', compact('claims', 'monthTotal', 'monthLabel', 'years'));
+        return view('claims.history', [
+            'claims' => $claims,
+            'payload' => $payload,
+            'years' => $years,
+            'rows' => config('claim_rates.rows'),
+        ]);
     }
 
     /** Authorised download/preview of a private attachment (owner or admin). */

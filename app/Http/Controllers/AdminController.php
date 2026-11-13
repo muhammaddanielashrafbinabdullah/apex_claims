@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Claim;
+use App\Models\ClaimItem;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AdminController extends Controller
@@ -18,34 +20,20 @@ class AdminController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        // Compact payload for the Alpine review modal.
-        $payload = $claims->getCollection()->map(fn (Claim $c) => [
-            'id' => $c->id,
-            'claim_number' => $c->claim_number,
-            'period' => strtoupper(\Carbon\Carbon::create($c->claim_year, $c->claim_month, 1)->format('F Y')),
-            'status' => $c->status,
-            'rejection_reason' => $c->rejection_reason,
-            'full_name' => $c->full_name,
-            'designation' => $c->designation,
-            'department' => $c->department,
-            'staff_no' => $c->staff_no,
-            'bank_account' => $c->bank_account,
-            'vehicle_reg_no' => $c->vehicle_reg_no,
-            'vehicle_type' => $c->vehicle_type,
-            'vehicle_model' => $c->vehicle_model,
-            'vehicle_capacity' => $c->vehicle_capacity,
-            'vehicle_ownership' => $c->vehicle_ownership,
-            'total_amount' => (float) $c->total_amount,
-            'items' => $c->items->mapWithKeys(fn ($i) => [
-                $i->item_key => ['unit_input' => (float) $i->unit_input, 'amount' => (float) $i->amount],
-            ]),
-            'attachments' => $c->attachments->map(fn ($a) => [
-                'id' => $a->id,
-                'name' => $a->original_name,
-                'type' => $a->file_type,
-                'url' => route('claims.attachment', $a),
-            ]),
-        ])->values();
+        // Compact payload for the Alpine review pop-up.
+        $payload = $claims->getCollection()->map(fn (Claim $c) => self::claimPayload($c))->values();
+
+        // Count cards (follow the Month / Year filters).
+        $counts = Claim::forPeriod($month, $year)
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+        $stats = [
+            'submitted' => (int) $counts->sum(),
+            'pending' => (int) ($counts['pending'] ?? 0),
+            'approved' => (int) ($counts['approved'] ?? 0),
+            'rejected' => (int) ($counts['rejected'] ?? 0),
+        ];
 
         $years = Claim::select('claim_year')->distinct()->orderByDesc('claim_year')->pluck('claim_year');
         if ($years->isEmpty()) {
@@ -55,6 +43,7 @@ class AdminController extends Controller
         return view('admin.dashboard', [
             'claims' => $claims,
             'payload' => $payload,
+            'stats' => $stats,
             'years' => $years,
             'month' => $month,
             'year' => $year,
@@ -73,6 +62,14 @@ class AdminController extends Controller
             return back()->withErrors(['status' => "Claim #{$claim->claim_number} has already been {$claim->status}."]);
         }
 
+        if ($data['status'] === 'approved') {
+            // Approving needs at least one valid (not disallowed) line.
+            if ($claim->items()->where('disallowed', false)->doesntExist()) {
+                return back()->withErrors(['status' => 'Every line of this claim is declined. Reject the claim instead.']);
+            }
+            $claim->recalculateTotal();
+        }
+
         $claim->forceFill([
             'status' => $data['status'],
             'rejection_reason' => $data['status'] === 'rejected' ? ($data['rejection_reason'] ?? null) : null,
@@ -81,5 +78,56 @@ class AdminController extends Controller
         ])->save();
 
         return back()->with('status', "Claim #{$claim->claim_number} {$data['status']}.");
+    }
+
+    /** Disallow one line of a pending claim. The claim total is recalculated from the valid lines. */
+    public function disallowItem(Request $request, Claim $claim, ClaimItem $item): JsonResponse
+    {
+        $this->guardItem($claim, $item);
+
+        $data = $request->validate(['reason' => ['required', 'string', 'max:500']], ['reason.required' => 'Please enter a reason for declining.']);
+
+        $item->forceFill([
+            'disallowed' => true,
+            'disallow_reason' => $data['reason'] ?? null,
+            'disallowed_by' => $request->user()->id,
+            'disallowed_at' => now(),
+        ])->save();
+
+        return $this->respond($claim);
+    }
+
+    /** Bring a disallowed line back (only while the claim is still pending). */
+    public function restoreItem(Request $request, Claim $claim, ClaimItem $item): JsonResponse
+    {
+        $this->guardItem($claim, $item);
+
+        $item->forceFill([
+            'disallowed' => false,
+            'disallow_reason' => null,
+            'disallowed_by' => null,
+            'disallowed_at' => null,
+        ])->save();
+
+        return $this->respond($claim);
+    }
+
+    private function guardItem(Claim $claim, ClaimItem $item): void
+    {
+        abort_unless($item->claim_id === $claim->id, 404);
+        abort_if($claim->status !== 'pending', 422, 'Only pending claims can be changed.');
+    }
+
+    private function respond(Claim $claim): JsonResponse
+    {
+        $claim->recalculateTotal();
+        $claim->load(['items', 'attachments']);
+
+        return response()->json(['claim' => self::claimPayload($claim)]);
+    }
+
+    public static function claimPayload(Claim $c): array
+    {
+        return $c->reviewPayload(false);
     }
 }

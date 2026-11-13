@@ -16,21 +16,10 @@
     $box = 'min-h-[2rem] border border-slate-400 bg-slate-100 px-2 py-1 text-slate-800';
 @endphp
 
-<div x-data="{
-        openModal: false,
-        selectedClaim: null,
-        rejecting: false,
-        claims: @js($payload),
-        open(id) { this.selectedClaim = this.claims.find(c => c.id === id); this.rejecting = false; this.openModal = true; },
-        close() { this.openModal = false; this.rejecting = false; },
-        item(key, field) { const i = this.selectedClaim && this.selectedClaim.items[key]; return i ? i[field] : null; },
-        fmt(n) { return n === null || n === undefined ? '' : Number(n).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
-        qty(key) { const v = this.item(key, 'unit_input'); return v === null ? '' : Number(v).toLocaleString('en-MY', { maximumFractionDigits: 2 }); },
-        amt(key) { const v = this.item(key, 'amount'); return v === null ? '—' : this.fmt(v); },
-     }"
+<div x-data="adminReview(@js($payload), '{{ url('/admin/claims') }}')"
      @keydown.escape.window="close()" class="mx-auto max-w-6xl space-y-6">
 
-    <h1 class="text-4xl font-extrabold tracking-tight">DASHBOARD</h1>
+    <h1 class="text-white text-4xl font-extrabold tracking-tight">DASHBOARD</h1>
 
     {{-- Action bar --}}
     <form method="GET" action="{{ route('admin.dashboard') }}" class="flex flex-wrap items-center gap-3">
@@ -52,6 +41,14 @@
         </a>
     </form>
 
+    {{-- Count cards (follow the Month / Year filters) --}}
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="rounded-lg border-2 border-slate-800 bg-white p-4"><p class="text-xs font-semibold uppercase text-slate-500">Total submitted</p><p class="text-3xl font-extrabold">{{ $stats['submitted'] }}</p></div>
+        <div class="rounded-lg border bg-white p-4"><p class="text-xs font-semibold uppercase text-amber-700">Pending</p><p class="text-3xl font-bold">{{ $stats['pending'] }}</p></div>
+        <div class="rounded-lg border bg-white p-4"><p class="text-xs font-semibold uppercase text-green-700">Approved</p><p class="text-3xl font-bold">{{ $stats['approved'] }}</p></div>
+        <div class="rounded-lg border bg-white p-4"><p class="text-xs font-semibold uppercase text-red-700">Rejected</p><p class="text-3xl font-bold">{{ $stats['rejected'] }}</p></div>
+    </div>
+
     {{-- Table --}}
     <div class="overflow-x-auto rounded-lg border bg-white">
         <table class="w-full text-sm">
@@ -70,7 +67,7 @@
                     <tr class="border-b last:border-0">
                         <td class="px-4 py-3 font-medium">{{ $claim->full_name }}</td>
                         <td class="px-4 py-3">{{ $claim->staff_no }}</td>
-                        <td class="px-4 py-3 text-left font-semibold">RM {{ number_format($claim->total_amount, 2) }}</td>
+                        <td class="px-4 py-3 text-left font-semibold">RM <span x-text="fmt(claimTotal({{ $claim->id }}))">{{ number_format($claim->total_amount, 2) }}</span></td>
                         <td class="px-4 py-3">{{ $claim->submitted_at->timezone($tz)->format('d/m/Y') }}</td>
                         <td class="px-4 py-3">
                             <span class="inline-block rounded-full border px-3 py-0.5 text-xs font-semibold {{ $badge[$claim->status] }}">{{ ucfirst($claim->status) }}</span>
@@ -87,23 +84,18 @@
         </table>
     </div>
 
-    <div>{{ $claims->links() }}</div>
+    <div class="rounded-lg bg-white px-3 py-2 empty:hidden">{{ $claims->links() }}</div>
 
-    {{-- ============ Review pop-up: same layout as the staff form, view only ============ --}}
+    {{-- ============ Review pop-up: same layout as the staff form ============ --}}
     <div x-show="openModal" x-cloak x-transition.opacity
          class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" @click.self="close()">
         <div class="relative flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl" @click.stop>
 
-            {{-- Watermark --}}
-            <div class="pointer-events-none absolute inset-0 flex select-none items-center justify-center overflow-hidden">
-                <span class="-rotate-12 text-8xl font-black uppercase tracking-widest text-slate-900/5">(VIEW ONLY)</span>
-            </div>
 
             {{-- Header --}}
             <div class="relative flex items-center justify-between border-b bg-white/80 px-6 py-4">
                 <div class="flex flex-wrap items-baseline gap-3">
                     <h2 class="text-3xl font-extrabold tracking-tight" x-text="selectedClaim ? 'CLAIM OF ' + selectedClaim.period : 'CLAIM'"></h2>
-                    <span class="text-sm font-semibold text-slate-500">(VIEW ONLY)</span>
                     <span class="font-mono text-sm text-slate-500" x-text="selectedClaim ? '#' + selectedClaim.claim_number : ''"></span>
                 </div>
                 <button type="button" @click="close()" class="rounded-full p-1.5 hover:bg-slate-200" aria-label="Close">
@@ -115,8 +107,10 @@
                 <div class="relative flex-1 space-y-6 overflow-y-auto p-6">
 
                     {{-- Employee info: display boxes, dash when empty --}}
-                    <section class="rounded-lg border-2 border-slate-800 p-5">
-                        <div class="grid gap-x-8 gap-y-3 md:grid-cols-2">
+                    <section class="overflow-hidden rounded-lg border-2 border-slate-800">
+<div class="bg-slate-800 px-4 py-2 text-left font-bold text-white">Claimant Details</div>
+<div class="p-5">
+<div class="grid gap-x-8 gap-y-3 md:grid-cols-2">
                             @foreach ([$left, $right] as $col)
                                 <div class="space-y-3">
                                     @foreach ($col as $field => $label)
@@ -128,8 +122,11 @@
                                 </div>
                             @endforeach
                         </div>
-                    </section>
+                    </div>
+</section>
 
+                    <p x-show="isPending()" class="text-sm text-slate-500">Click a line to review it.</p>
+                    
                     {{-- Claims table: same 7 columns as the form, fits the pop-up (no sideways scroll) --}}
                     <section class="rounded-lg border-2 border-slate-800">
                         <table class="w-full table-fixed border-collapse text-sm">
@@ -140,7 +137,14 @@
                             <tbody>
                                 @foreach ($rows as $row)
                                     @php $isMileage = $row['layout'] === 'mileage'; $k = $row['key']; @endphp
-                                    <tr class="border-b border-slate-300 {{ $row['title'] ? 'border-t border-t-slate-400' : '' }}">
+                                    <tr class="border-b border-slate-300 {{ $row['title'] ? 'border-t border-t-slate-400' : '' }}"
+                                        :class="{
+                                            'cursor-pointer hover:bg-sky-50': canReview('{{ $k }}') && !isOut('{{ $k }}'),
+                                            'cursor-pointer bg-slate-100 text-slate-400': isOut('{{ $k }}') && canReview('{{ $k }}'),
+                                            'bg-slate-100 text-slate-400': isOut('{{ $k }}') && !canReview('{{ $k }}'),
+                                            'bg-sky-100': activeKey === '{{ $k }}'
+                                        }"
+                                        @click="toggle('{{ $k }}')">
                                         <td class="px-3 py-2 align-middle">
                                             @if ($row['title']) <span class="block font-semibold">{{ $row['title'] }}</span> @endif
                                             @if ($row['sub']) <span class="block text-xs font-normal text-slate-500">{{ $row['sub'] }}</span> @endif
@@ -151,19 +155,36 @@
                                             <td class="px-2 py-2">{{ $row['rate_text'] }}</td>
                                             <td colspan="2" class="px-2 py-2">
                                                 <div class="flex items-center justify-center gap-2">
-                                                    <div class="{{ $box }} w-28 min-w-0 text-right" x-text="qty('{{ $k }}') || '—'"></div>
+                                                    <div class="{{ $box }} w-28 min-w-0 text-right" :class="isOut('{{ $k }}') && 'line-through'" x-text="qty('{{ $k }}') || '—'"></div>
                                                     <span class="text-slate-600">km</span>
                                                 </div>
                                             </td>
                                         @else
-                                            <td class="px-2 py-2"><div class="{{ $box }} text-right" x-text="qty('{{ $k }}') || '—'"></div></td>
+                                            <td class="px-2 py-2"><div class="{{ $box }} text-right" :class="isOut('{{ $k }}') && 'line-through'" x-text="qty('{{ $k }}') || '—'"></div></td>
                                             <td class="px-2 py-2 text-slate-600">{{ $row['unit'] }}</td>
                                             <td class="px-2 py-2">{{ $row['rate_text'] }}</td>
                                             <td class="px-2 py-2 text-slate-600">{{ $row['rule'] }}</td>
                                         @endif
 
                                         <td class="px-2 py-2 text-right font-semibold">RM</td>
-                                        <td class="px-2 py-2"><div class="{{ $box }} text-right font-mono" x-text="amt('{{ $k }}')"></div></td>
+                                        <td class="px-2 py-2"><div class="{{ $box }} text-right font-mono" :class="isOut('{{ $k }}') && 'line-through'" x-text="amt('{{ $k }}')"></div></td>
+                                    </tr>
+                                    {{-- Small panel that opens when the admin clicks this line --}}
+                                    <tr x-show="activeKey === '{{ $k }}'" x-cloak class="border-b border-slate-300 bg-sky-50">
+                                        <td colspan="7" class="px-3 py-3" @click.stop>
+                                            <p x-show="err && activeKey === '{{ $k }}'" x-cloak class="mb-2 text-right text-xs font-semibold text-red-700" x-text="err"></p>
+                                            <div class="flex flex-wrap items-center justify-end gap-3">
+                                                <span x-show="isOut('{{ $k }}') && reasonOf('{{ $k }}')" class="mr-auto text-xs text-slate-600">
+                                                    Declined – <span x-text="reasonOf('{{ $k }}')"></span>
+                                                </span>
+                                                <input x-show="!isOut('{{ $k }}')" type="text" x-model="reason" maxlength="500"
+                                                       placeholder="Reason for declining, e.g. Receipt not provided" class="w-96 rounded border-slate-300 text-sm">
+                                                <button type="button" x-show="!isOut('{{ $k }}')" @click="send('{{ $k }}', 'disallow')" :disabled="busy"
+                                                        class="rounded-lg bg-red-600 px-4 py-1.5 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50">Decline</button>
+                                                <button type="button" x-show="isOut('{{ $k }}')" @click="send('{{ $k }}', 'restore')" :disabled="busy"
+                                                        class="rounded-lg border border-slate-700 px-4 py-1.5 text-sm font-bold hover:bg-slate-800 hover:text-white disabled:opacity-50">Reinstate</button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -177,9 +198,9 @@
                         </table>
                     </section>
 
-                    {{-- Attachments (open only: no upload, no remove) --}}
-                    <section class="rounded-lg border-2 border-slate-800 p-5">
-                        <h3 class="mb-3 font-bold">Attach Receipt or Proof</h3>
+                    <section class="overflow-hidden rounded-lg border-2 border-slate-800">
+<div class="bg-slate-800 px-4 py-2 text-left font-bold text-white">Receipts & Proof</div>
+<div class="p-5">
                         <p x-show="!selectedClaim.attachments.length" class="text-sm text-slate-500">No attachments.</p>
                         <ul class="flex flex-wrap gap-2">
                             <template x-for="file in selectedClaim.attachments" :key="file.id">
@@ -193,7 +214,8 @@
                                 </li>
                             </template>
                         </ul>
-                    </section>
+                    </div>
+</section>
 
                     <p x-show="selectedClaim.status === 'rejected' && selectedClaim.rejection_reason" class="text-sm text-red-700">
                         Rejection reason: <span x-text="selectedClaim.rejection_reason"></span>
@@ -207,7 +229,7 @@
                     <form method="POST" :action="selectedClaim ? '{{ url('/admin/claims') }}/' + selectedClaim.id + '/status' : '#'">
                         @csrf @method('PATCH')
                         <input type="hidden" name="status" value="approved">
-                        <button class="rounded-lg bg-green-600 px-6 py-2.5 font-bold text-white hover:bg-green-700">Approve</button>
+                        <button :disabled="!hasValid" class="rounded-lg bg-green-600 px-6 py-2.5 font-bold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40">Approve</button>
                     </form>
 
                     <form method="POST" :action="selectedClaim ? '{{ url('/admin/claims') }}/' + selectedClaim.id + '/status' : '#'" class="flex flex-col items-end gap-2">
@@ -221,9 +243,6 @@
                     </form>
                 </div>
             </div>
-            <div class="relative border-t bg-slate-50 px-6 py-3 text-right text-sm text-slate-500"
-                 x-show="selectedClaim && selectedClaim.status !== 'pending'"
-                 x-text="selectedClaim ? 'This claim has been ' + selectedClaim.status + '.' : ''"></div>
         </div>
     </div>
 </div>

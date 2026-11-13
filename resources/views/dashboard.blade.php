@@ -15,7 +15,12 @@
     @forelse ($recent as $c)
         <div class="flex justify-between border-b px-5 py-3 text-sm last:border-0">
             <span>#{{ $c->claim_number }} · {{ $c->submitted_at->format('d M Y') }}</span>
-            <span>RM {{ number_format($c->total_amount, 2) }} · {{ ucfirst($c->status) }}</span>
+            <span>
+                @if ($c->disallowed_lines->isNotEmpty())
+                    <a href="{{ route('claims.history') }}" class="mr-2 rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 hover:bg-amber-200">Adjusted</a>
+                @endif
+                RM {{ number_format($c->total_amount, 2) }} · {{ ucfirst($c->status) }}
+            </span>
         </div>
     @empty
         <p class="px-5 py-6 text-sm text-slate-500">No claims yet. <a class="underline" href="{{ route('claims.create') }}">Submit your first claim</a>.</p>
