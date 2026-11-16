@@ -1,7 +1,7 @@
 @props(['bold', 'light' => null])
 {{-- Page title: light + bold wording, thin logo-blue line with a small red tip (echoes the red in the logo). --}}
 <div>
-    <h1 class="text-4xl leading-tight tracking-tight text-[#263c76] md:text-5xl">
+    <h1 class="mont text-4xl leading-tight tracking-tight text-[#263c76] md:text-5xl">
         @if ($light)<span class="font-light">{{ $light }}</span>@endif
         <span class="font-extrabold">{{ $bold }}</span>
     </h1>

@@ -42,16 +42,17 @@ class TripDetailsSheet implements FromArray, WithEvents, WithTitle
                     ->filter(fn (Claim $c) => trim((string) $c->trip_from.(string) $c->trip_to.(string) $c->trip_job) !== '' || $c->trip_date);
 
                 ExportHelper::title($sheet, 'Travel Description ('.ExportHelper::periodLabel($this->month, $this->year).')');
+                ExportHelper::redLine($sheet, 'B3:G3');
 
                 // Two header rows (4-5): "Destination" spans From | To. Table starts at column B.
                 // B Full Name | C Staff No | D Date | E From | F To | G Description
-                $sheet->setCellValue('B4', 'Full Name');
-                $sheet->setCellValue('C4', 'Staff No');
-                $sheet->setCellValue('D4', 'Date');
-                $sheet->setCellValue('E4', 'Destination');
-                $sheet->setCellValue('E5', 'From');
-                $sheet->setCellValue('F5', 'To');
-                $sheet->setCellValue('G4', 'Description');
+                $sheet->setCellValue('B4', 'FULL NAME');
+                $sheet->setCellValue('C4', 'STAFF NO');
+                $sheet->setCellValue('D4', 'DATE');
+                $sheet->setCellValue('E4', 'DESTINATION');
+                $sheet->setCellValue('E5', 'FROM');
+                $sheet->setCellValue('F5', 'TO');
+                $sheet->setCellValue('G4', 'DESCRIPTION');
                 foreach (['B', 'C', 'D', 'G'] as $col) {
                     $sheet->mergeCells("{$col}4:{$col}5");
                 }
@@ -69,6 +70,7 @@ class TripDetailsSheet implements FromArray, WithEvents, WithTitle
                     $sheet->setCellValue("E{$r}", $c->trip_from ?: '-');
                     $sheet->setCellValue("F{$r}", $c->trip_to ?: '-');
                     $sheet->setCellValue("G{$r}", $c->trip_job ?: '-');
+                    $sheet->getRowDimension($r)->setRowHeight(20);
                 }
                 $lastData = $r;
 
@@ -82,12 +84,20 @@ class TripDetailsSheet implements FromArray, WithEvents, WithTitle
                 ExportHelper::styleTable($sheet, "B6:G{$lastData}");
                 $sheet->getStyle("B6:G{$lastData}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
                 $sheet->getStyle("C6:F{$lastData}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle("B6:B{$lastData}")->getAlignment()->setIndent(1);
+                if (! $claims->isEmpty()) {
+                    for ($i = 7; $i <= $lastData; $i += 2) {
+                        ExportHelper::stripe($sheet, "B{$i}:G{$i}");
+                    }
+                }
+                ExportHelper::outerFrame($sheet, "B4:G{$lastData}");
+                $sheet->getTabColor()->setRGB(ExportHelper::RED);
+                ExportHelper::printFooter($sheet);
 
-                foreach (['A' => 2, 'B' => 28, 'C' => 10, 'D' => 12, 'E' => 24, 'F' => 24, 'G' => 50] as $col => $w) {
+                foreach (['A' => 2, 'B' => 28, 'C' => 13, 'D' => 14, 'E' => 26, 'F' => 26, 'G' => 50] as $col => $w) {
                     $sheet->getColumnDimension($col)->setWidth($w);
                 }
 
-                $sheet->getSheetView()->setZoomScale(90);
 
                 $page = $sheet->getPageSetup();
                 $page->setOrientation('landscape');

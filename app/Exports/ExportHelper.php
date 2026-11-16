@@ -14,6 +14,11 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  */
 class ExportHelper
 {
+    public const NAVY = '263C76';   // APEX blue
+    public const RED = 'D9262C';    // APEX red (accent only)
+    public const GRID = 'BFC7D9';   // fine inner grid lines
+    public const STRIPE = 'F3F6FB'; // very light row stripe
+
     /** Summary columns, in the order requested. Heading => list of item-key matchers. */
     public const COLUMNS = [
         'Meal Allowance' => ['meal_days'],
@@ -116,7 +121,7 @@ class ExportHelper
     {
         $sheet->getRowDimension(1)->setRowHeight(10);
         $sheet->getRowDimension(2)->setRowHeight(30);
-        $sheet->getRowDimension(3)->setRowHeight(10);
+        $sheet->getRowDimension(3)->setRowHeight(6);
         $sheet->setCellValue('B2', $text);
         $sheet->getStyle('B2')->applyFromArray([
             'font' => ['name' => 'Arial', 'bold' => true, 'size' => 16, 'underline' => Font::UNDERLINE_SINGLE, 'color' => ['rgb' => '000000']],
@@ -129,18 +134,56 @@ class ExportHelper
     {
         $sheet->getStyle($range)->applyFromArray([
             'font' => ['name' => 'Arial Narrow', 'size' => 10, 'color' => ['rgb' => '000000']],
-            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => self::GRID]]],
         ]);
     }
 
-    /** Table header cells: bold black text on light gray, centred, with black outline. */
+    /** Table header cells: light gray, bold APEX-blue text, centred, thin outline and a thin red line along the bottom. */
     public static function styleHeaderRange(Worksheet $sheet, string $range): void
     {
         $sheet->getStyle($range)->applyFromArray([
-            'font' => ['name' => 'Arial', 'bold' => true, 'size' => 10, 'color' => ['rgb' => '000000']],
+            'font' => ['name' => 'Arial', 'bold' => true, 'size' => 10, 'color' => ['rgb' => self::NAVY]],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D9D9D9']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
-            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
+            'borders' => [
+                'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '9AA3B5']],
+                'bottom' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => self::RED]],
+            ],
         ]);
+    }
+
+    /** Navy band cell(s) with white bold text (group names, TOTAL, Destination). */
+    public static function styleBand(Worksheet $sheet, string $range, string $fill = self::NAVY): void
+    {
+        $sheet->getStyle($range)->applyFromArray([
+            'font' => ['name' => 'Arial', 'bold' => true, 'size' => 10, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $fill]],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'FFFFFF']]],
+        ]);
+    }
+
+    /** Thin red accent line under the title, running the width of the table. */
+    public static function redLine(Worksheet $sheet, string $range): void
+    {
+        $sheet->getStyle($range)->applyFromArray(['borders' => ['bottom' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => self::RED]]]]);
+    }
+
+    /** Stronger navy frame around the whole table. */
+    public static function outerFrame(Worksheet $sheet, string $range): void
+    {
+        $sheet->getStyle($range)->applyFromArray(['borders' => ['outline' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => self::NAVY]]]]);
+    }
+
+    /** Very light stripe on every second data row. */
+    public static function stripe(Worksheet $sheet, string $range): void
+    {
+        $sheet->getStyle($range)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::STRIPE);
+    }
+
+    /** Print footer only (nothing extra on screen). */
+    public static function printFooter(Worksheet $sheet): void
+    {
+        $sheet->getHeaderFooter()->setOddFooter('&L&"Arial,Regular"&8Apex Communications Group - Confidential&R&"Arial,Regular"&8Page &P of &N');
     }
 }
