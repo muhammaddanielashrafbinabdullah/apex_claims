@@ -61,8 +61,7 @@ class ClaimsSummarySheet implements FromArray, WithEvents, WithTitle
                 $rows = $this->rows();
 
                 // Table starts at column B. B = Full Name, C = Staff No, D.. = amounts, last = TOTAL.
-                // Headings are diagonal (60 degrees) but every header cell is merged over rows 4-5,
-                // which keeps the cell itself a normal rectangle. Data starts on row 6.
+                // Headings are straight; every header cell is merged over rows 4-5 (same look as sheet 2). Data starts on row 6.
                 $headings = array_map('mb_strtoupper', array_merge(['Full Name', 'Staff No'], array_keys(ExportHelper::COLUMNS), ['Total']));
                 $firstAmountCol = 4;
                 $lastCol = 1 + count($headings);
@@ -79,17 +78,17 @@ class ClaimsSummarySheet implements FromArray, WithEvents, WithTitle
 
                 // ---- headings ----
                 ExportHelper::styleHeaderRange($sheet, "{$first}{$bandRow}:{$last}{$headerRow}");
-                $sheet->getStyle("{$first}{$bandRow}:{$last}{$headerRow}")->getFont()->setName('Arial')->setBold(true)->setSize(10);
-                // No wrapping on tilted text: wrapping is what squeezed the words together.
-                $sheet->getStyle("{$first}{$bandRow}:{$last}{$headerRow}")->getAlignment()->setWrapText(false);
-                $sheet->getRowDimension($bandRow)->setRowHeight(60);
-                $sheet->getRowDimension($headerRow)->setRowHeight(60);
+                $sheet->getStyle("{$first}{$bandRow}:{$last}{$headerRow}")->getFont()->setName('Arial')->setBold(true)->setSize(9);
+                // Straight headings: wrapped onto two lines where the name is long, centred.
+                $sheet->getStyle("{$first}{$bandRow}:{$last}{$headerRow}")->getAlignment()->setWrapText(true);
+                $sheet->getRowDimension($bandRow)->setRowHeight(22);
+                $sheet->getRowDimension($headerRow)->setRowHeight(22);
                 foreach ($headings as $i => $text) {
                     $col = Coordinate::stringFromColumnIndex(2 + $i);
                     $sheet->mergeCells("{$col}{$bandRow}:{$col}{$headerRow}");
                     $sheet->setCellValue("{$col}{$bandRow}", $text);
                     $sheet->getStyle("{$col}{$bandRow}")->getAlignment()
-                        ->setTextRotation(60)->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+                        ->setTextRotation(0)->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
                 }
 
                 // ---- data rows ----
@@ -102,7 +101,9 @@ class ClaimsSummarySheet implements FromArray, WithEvents, WithTitle
                         $sheet->setCellValue(Coordinate::stringFromColumnIndex($firstAmountCol + $i).$r, $amount);
                     }
                     $sheet->setCellValue("{$totalLetter}{$r}", $row['total']);
-                    $sheet->getRowDimension($r)->setRowHeight(20);
+                    // A long name wraps onto more lines inside its column, so the table never gets wider.
+                    $lines = max(1, (int) ceil(mb_strlen((string) $row['name']) / 26));
+                    $sheet->getRowDimension($r)->setRowHeight(max(20, 13 * $lines + 7));
                 }
                 $lastData = $r;
 
@@ -117,7 +118,7 @@ class ClaimsSummarySheet implements FromArray, WithEvents, WithTitle
                 // ---- look ----
                 ExportHelper::styleTable($sheet, "{$first}{$dataStart}:{$last}{$lastData}");
                 $sheet->getStyle("{$first}{$dataStart}:{$last}{$lastData}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
-                $sheet->getStyle("B{$dataStart}:B{$lastData}")->getAlignment()->setIndent(1);
+                $sheet->getStyle("B{$dataStart}:B{$lastData}")->getAlignment()->setIndent(1)->setWrapText(true);
                 $sheet->getStyle("C{$dataStart}:C{$lastData}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                 $amountRange = "{$firstAmount}{$dataStart}:{$last}{$lastData}";
                 $sheet->getStyle($amountRange)->getNumberFormat()->setFormatCode(self::AMOUNT_FORMAT);
@@ -138,14 +139,17 @@ class ClaimsSummarySheet implements FromArray, WithEvents, WithTitle
 
                 // ---- widths, view, print ----
                 $sheet->getColumnDimension('A')->setWidth(2);
-                $sheet->getColumnDimension('B')->setWidth(26);
-                $sheet->getColumnDimension('C')->setWidth(12);
+                $sheet->getColumnDimension('B')->setWidth(24);
+                $sheet->getColumnDimension('C')->setWidth(11);
+                // Wide enough that a heading is never split in the middle of a word.
                 for ($col = $firstAmountCol; $col < $lastCol; $col++) {
-                    $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setWidth(17);
+                    $name = $headings[$col - 2];
+                    $wide = in_array($name, ['ACCOMMODATION', 'ENTERTAINMENT'], true);
+                    $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setWidth($wide ? 16.5 : 13);
                 }
-                $sheet->getColumnDimension($totalLetter)->setWidth(13);
+                $sheet->getColumnDimension($totalLetter)->setWidth(12);
 
-                $sheet->getTabColor()->setRGB(ExportHelper::NAVY);
+                $sheet->getSheetView()->setZoomScale(80);
                 ExportHelper::printFooter($sheet);
 
                 $page = $sheet->getPageSetup();

@@ -70,7 +70,15 @@ class TripDetailsSheet implements FromArray, WithEvents, WithTitle
                     $sheet->setCellValue("E{$r}", $c->trip_from ?: '-');
                     $sheet->setCellValue("F{$r}", $c->trip_to ?: '-');
                     $sheet->setCellValue("G{$r}", $c->trip_job ?: '-');
-                    $sheet->getRowDimension($r)->setRowHeight(20);
+                    // Long names / descriptions wrap inside their columns, so the table never gets wider.
+                    $lines = max(
+                        (int) ceil(mb_strlen((string) $c->full_name) / 27),
+                        (int) ceil(mb_strlen((string) $c->trip_from) / 25),
+                        (int) ceil(mb_strlen((string) $c->trip_to) / 25),
+                        (int) ceil(mb_strlen((string) $c->trip_job) / 55),
+                        1
+                    );
+                    $sheet->getRowDimension($r)->setRowHeight(max(20, 13 * $lines + 7));
                 }
                 $lastData = $r;
 
@@ -91,7 +99,7 @@ class TripDetailsSheet implements FromArray, WithEvents, WithTitle
                     }
                 }
                 ExportHelper::outerFrame($sheet, "B4:G{$lastData}");
-                $sheet->getTabColor()->setRGB(ExportHelper::RED);
+                $sheet->getSheetView()->setZoomScale(90);
                 ExportHelper::printFooter($sheet);
 
                 foreach (['A' => 2, 'B' => 28, 'C' => 13, 'D' => 14, 'E' => 26, 'F' => 26, 'G' => 50] as $col => $w) {

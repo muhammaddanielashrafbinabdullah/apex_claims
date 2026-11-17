@@ -41,7 +41,7 @@
 <g fill="#13224f" opacity="0.9"><rect x="0" y="661" width="20" height="39"/><rect x="20" y="675" width="24" height="25"/><rect x="44" y="676" width="16" height="24"/><rect x="60" y="653" width="12" height="47"/><rect x="74" y="647" width="16" height="53"/><rect x="90" y="650" width="24" height="50"/><rect x="114" y="656" width="16" height="44"/><rect x="133" y="675" width="24" height="25"/><rect x="159" y="669" width="24" height="31"/><rect x="183" y="645" width="20" height="55"/><rect x="205" y="669" width="12" height="31"/><rect x="217" y="644" width="24" height="56"/></g>
 </svg>
                 <div class="relative px-5 pb-2 pt-6">
-                    <div class="rounded-2xl bg-white/95 p-3 shadow-[0_12px_28px_rgba(15,25,60,.35)] ring-1 ring-white/70">
+                    <div class="rounded-2xl bg-white p-3 shadow-[0_12px_28px_rgba(15,25,60,.35)]">
                         <img src="{{ asset('images/logo.png') }}" alt="Apex Claims Portal" class="mx-auto h-auto w-full">
                     </div>
                 </div>

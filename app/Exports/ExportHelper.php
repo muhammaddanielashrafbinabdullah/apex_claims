@@ -119,9 +119,9 @@ class ExportHelper
     /** One big underlined title in column B (row 2). Table starts below it. */
     public static function title(Worksheet $sheet, string $text): void
     {
-        $sheet->getRowDimension(1)->setRowHeight(10);
+        $sheet->getRowDimension(1)->setRowHeight(18);
         $sheet->getRowDimension(2)->setRowHeight(30);
-        $sheet->getRowDimension(3)->setRowHeight(6);
+        $sheet->getRowDimension(3)->setRowHeight(18);
         $sheet->setCellValue('B2', $text);
         $sheet->getStyle('B2')->applyFromArray([
             'font' => ['name' => 'Arial', 'bold' => true, 'size' => 16, 'underline' => Font::UNDERLINE_SINGLE, 'color' => ['rgb' => '000000']],
