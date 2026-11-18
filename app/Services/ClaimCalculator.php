@@ -18,7 +18,7 @@ class ClaimCalculator
         $total = 0.0;
 
         foreach (config('claim_rates.rows') as $row) {
-            $value = $this->num($inputs[$row['key']] ?? 0);
+            [$value, $terms] = self::evaluate($inputs[$row['key']] ?? 0);
             if ($value <= 0) {
                 continue;
             }
@@ -30,6 +30,9 @@ class ClaimCalculator
                 'item_key' => $row['key'],
                 'category' => $row['group'],
                 'description' => $this->descriptionFor($row, $notes),
+                'breakdown' => ! empty($row['sum']) && count($terms) > 1
+                    ? implode(' + ', array_map(fn ($t) => number_format($t, 2, '.', ''), $terms))
+                    : null,
                 'unit_input' => $value,
                 'amount' => $amount,
             ];
@@ -71,8 +74,29 @@ class ClaimCalculator
         };
     }
 
-    private function num(mixed $v): float
+    /**
+     * Read an amount the claimant typed: a plain number ("12.50") or several amounts added together
+     * ("1.10 + 2.40 + 3.00"). Nothing is evaluated as code: only digits, dots, '+' and spaces are accepted.
+     *
+     * @return array{0: float, 1: array<int, float>}  [sum, the individual amounts]
+     */
+    public static function evaluate(mixed $v): array
     {
-        return is_numeric($v) && $v > 0 ? (float) $v : 0.0;
+        if (is_int($v) || is_float($v)) {
+            return $v > 0 ? [round((float) $v, 2), [(float) $v]] : [0.0, []];
+        }
+        if (is_string($v) && is_numeric($v)) {
+            return (float) $v > 0 ? [round((float) $v, 2), [(float) $v]] : [0.0, []];
+        }
+        if (! is_string($v) || ! preg_match(self::AMOUNT_PATTERN, $v)) {
+            return [0.0, []];
+        }
+
+        $terms = array_map('floatval', array_map('trim', explode('+', $v)));
+
+        return [round(array_sum($terms), 2), $terms];
     }
+
+    /** One or more amounts separated by + (each with up to 2 decimals). */
+    public const AMOUNT_PATTERN = '/^\s*\d+(\.\d{1,2})?(\s*\+\s*\d+(\.\d{1,2})?)*\s*$/';
 }

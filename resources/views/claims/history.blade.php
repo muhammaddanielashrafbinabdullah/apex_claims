@@ -180,23 +180,25 @@
                                             @if ($row['title']) <span class="block font-semibold">{{ $row['title'] }}</span> @endif
                                             @if ($row['sub']) <span class="block text-xs font-normal text-slate-500">{{ $row['sub'] }}</span> @endif
                                             @if (! empty($row['part']) && empty($row['text'])) <span class="block pl-4 text-slate-700">{{ $row['part'] }}</span> @endif
+                                            @if ($isMileage) <span class="block pl-4 text-slate-700">{{ $row['tier'] }}</span> @endif
                                             @if (! empty($row['text']))
                                                 <span class="block pl-4 text-slate-700" x-text="noteOf('{{ $k }}') || 'Other'"></span>
                                             @endif
                                         </td>
 
                                         @if ($isMileage)
-                                            <td class="px-2 py-2">{{ $row['tier'] }}</td>
+                                            <td class="px-2 py-2"><div class="{{ $box }} text-right" :class="isOut('{{ $k }}') && 'line-through'" x-text="qty('{{ $k }}') || '—'"></div></td>
+                                            <td class="px-2 py-2 text-slate-600">km</td>
                                             <td class="px-2 py-2">{{ $row['rate_text'] }}</td>
-                                            <td colspan="2" class="px-2 py-2">
-                                                <div class="flex items-center justify-center gap-2">
-                                                    <div class="{{ $box }} w-28 min-w-0 text-right" :class="isOut('{{ $k }}') && 'line-through'" x-text="qty('{{ $k }}') || '—'"></div>
-                                                    <span class="text-slate-600">km</span>
+                                            <td class="px-2 py-2 text-slate-600">{{ $row['rule'] }}</td>
+                                        @else
+                                            <td class="px-2 py-2">
+                                                <div class="flex items-center gap-2">
+                                                    @if ($row['unit'] === 'RM') <span class="shrink-0 font-semibold text-slate-600">RM</span> @endif
+                                                    <div class="{{ $box }} min-w-0 flex-1 text-right" :class="isOut('{{ $k }}') && 'line-through'" x-text="qty('{{ $k }}') || '—'"></div>
                                                 </div>
                                             </td>
-                                        @else
-                                            <td class="px-2 py-2"><div class="{{ $box }} text-right" :class="isOut('{{ $k }}') && 'line-through'" x-text="qty('{{ $k }}') || '—'"></div></td>
-                                            <td class="px-2 py-2 text-slate-600">{{ $row['unit'] }}</td>
+                                            <td class="px-2 py-2 text-slate-600">{{ $row['unit'] === 'RM' ? '' : $row['unit'] }}</td>
                                             <td class="px-2 py-2">{{ $row['rate_text'] }}</td>
                                             <td class="px-2 py-2 text-slate-600">{{ $row['rule'] }}</td>
                                         @endif
@@ -204,6 +206,25 @@
                                         <td class="px-2 py-2 text-right font-semibold">RM</td>
                                         <td class="px-2 py-2"><div class="{{ $box }} text-right font-mono" :class="isOut('{{ $k }}') && 'line-through'" x-text="amt('{{ $k }}')"></div></td>
                                     </tr>
+                                    @if (! empty($row['proof']))
+                                        {{-- Receipts attached to this line --}}
+                                        <tr x-show="item('{{ $k }}', 'id') && (filesOf('{{ $k }}').length || breakdownOf('{{ $k }}') || selectedClaim.per_line)" x-cloak class="border-b border-slate-200 bg-slate-50">
+                                            <td colspan="7" class="px-3 py-2">
+                                                <div class="flex flex-wrap items-center gap-2 pl-4">
+                                                    <span class="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-slate-500"><x-heroicon-o-paper-clip class="h-3.5 w-3.5" /> Proof</span>
+                                                    <template x-for="file in filesOf('{{ $k }}')" :key="file.id">
+                                                        <a :href="file.url" target="_blank" rel="noopener"
+                                                           class="flex max-w-[16rem] items-center gap-2 rounded-full border border-slate-400 bg-white px-3 py-1 text-xs hover:bg-slate-100">
+                                                            <span class="rounded px-1 text-[10px] font-bold text-white" :class="file.type === 'pdf' ? 'bg-red-600' : 'bg-blue-600'" x-text="file.type.toUpperCase()"></span>
+                                                            <span class="truncate" x-text="file.name"></span>
+                                                        </a>
+                                                    </template>
+                                                    <span x-show="!filesOf('{{ $k }}').length" class="text-xs font-semibold text-amber-600">No receipt attached</span>
+                                                    <span x-show="breakdownOf('{{ $k }}')" x-cloak class="ml-auto text-xs text-slate-600">Added: <span class="font-mono" x-text="breakdownOf('{{ $k }}')"></span></span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endif
                                     {{-- Reason shown under a declined line --}}
                                     <tr x-show="isOut('{{ $k }}')" x-cloak class="border-b border-slate-300 bg-red-50">
                                         <td colspan="7" class="px-3 py-1.5 text-xs text-red-700">
@@ -223,11 +244,11 @@
                     </section>
 
                     <section class="overflow-hidden rounded-lg border-2 border-slate-800">
-<div class="bg-slate-800 px-4 py-2 text-left font-bold text-white">Receipts & Proof</div>
+<div class="bg-slate-800 px-4 py-2 text-left font-bold text-white">Other Supporting Documents</div>
 <div class="p-5">
-                        <p x-show="!selectedClaim.attachments.length" class="text-sm text-slate-500">No attachments.</p>
+                        <p x-show="!generalFiles.length" class="text-sm text-slate-500">No other documents.</p>
                         <ul class="flex flex-wrap gap-2">
-                            <template x-for="file in selectedClaim.attachments" :key="file.id">
+                            <template x-for="file in generalFiles" :key="file.id">
                                 <li>
                                     <a :href="file.url" target="_blank" rel="noopener"
                                        class="flex items-center gap-2 rounded-full border border-slate-400 bg-slate-100 px-3 py-1 text-sm hover:bg-slate-200">

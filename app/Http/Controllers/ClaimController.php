@@ -23,6 +23,13 @@ class ClaimController extends Controller
 
     public function store(Request $request, ClaimCalculator $calculator)
     {
+        $fileRules = [
+            'file',
+            'mimes:'.implode(',', config('claim_rates.allowed_mimes')),
+            'mimetypes:application/pdf,image/jpeg',
+            'max:'.config('claim_rates.max_file_kb'),
+        ];
+
         $rules = [
             'full_name' => ['required', 'string', 'max:255'],
             'designation' => ['required', 'string', 'max:255'],
@@ -45,24 +52,39 @@ class ClaimController extends Controller
 
             'items' => ['required', 'array'],
 
-            // Receipts/proof are optional (any number of files, 10 MB each).
+            // Receipts per claim line: proofs[<line key>][] (any number of files, 10 MB each).
+            'proofs' => ['nullable', 'array'],
+            'proofs.*' => ['nullable', 'array'],
+            'proofs.*.*' => $fileRules,
+
+            // "Other supporting documents" are optional and not tied to a line.
             'attachments' => ['nullable', 'array'],
-            'attachments.*' => [
-                'file',
-                'mimes:'.implode(',', config('claim_rates.allowed_mimes')),
-                'mimetypes:application/pdf,image/jpeg',
-                'max:'.config('claim_rates.max_file_kb'),
-            ],
+            'attachments.*' => $fileRules,
         ];
 
         // Per-row numeric bounds generated from the rate matrix.
+        // Receipt-backed lines also accept several amounts added together, e.g. "1.10 + 2.40".
         foreach (config('claim_rates.rows') as $row) {
-            $rules['items.'.$row['key']] = ['nullable', 'numeric', 'min:0', 'max:'.$row['max']];
+            $rules['items.'.$row['key']] = empty($row['sum'])
+                ? ['nullable', 'numeric', 'min:0', 'max:'.$row['max']]
+                : ['nullable', 'string', 'max:255', function ($attribute, $value, $fail) use ($row) {
+                    if ($value === null || $value === '') {
+                        return;
+                    }
+                    [$sum] = ClaimCalculator::evaluate($value);
+                    if ($sum <= 0 && ! preg_match('/^\s*0+(\.0+)?\s*$/', (string) $value)) {
+                        $fail('Amount for '.$row['label'].': type a number such as 12.50, or amounts joined with + such as 1.10 + 2.40.');
+                    } elseif ($sum > $row['max']) {
+                        $fail('Amount for '.$row['label'].' is too large.');
+                    }
+                }];
         }
 
         $data = $request->validate($rules, [
             'attachments.*.mimes' => 'Attachments must be PDF or JPG files.',
             'attachments.*.mimetypes' => 'Attachments must be PDF or JPG files.',
+            'proofs.*.*.mimes' => 'Receipts must be PDF or JPG files.',
+            'proofs.*.*.mimetypes' => 'Receipts must be PDF or JPG files.',
         ]);
 
         // Recalculate server-side: any total sent by the browser is ignored.
@@ -71,10 +93,26 @@ class ClaimController extends Controller
             throw ValidationException::withMessages(['items' => 'Enter at least one claim item with a value above zero.']);
         }
 
+        // Every line that needs a receipt must have at least one file.
+        $proofFiles = [];
+        foreach ((array) $request->file('proofs', []) as $key => $files) {
+            $proofFiles[$key] = array_values(array_filter((array) $files));
+        }
+        $missing = [];
+        foreach (config('claim_rates.rows') as $row) {
+            $filled = collect($result['lines'])->contains('item_key', $row['key']);
+            if ($filled && ! empty($row['proof']) && empty($proofFiles[$row['key']])) {
+                $missing[] = $row['label'];
+            }
+        }
+        if ($missing) {
+            throw ValidationException::withMessages(['proofs' => 'Please attach a receipt or proof for: '.implode(', ', $missing).'.']);
+        }
+
         $storedPaths = [];
 
         try {
-            $claim = DB::transaction(function () use ($request, $data, $result, &$storedPaths) {
+            $claim = DB::transaction(function () use ($request, $data, $result, $proofFiles, &$storedPaths) {
                 $now = now();
                 $local = now(config('claim_rates.timezone')); // claim month/year follow Malaysia time
 
@@ -102,18 +140,31 @@ class ClaimController extends Controller
 
                 $claim->items()->createMany($result['lines']);
 
-                foreach ($request->file('attachments', []) as $file) {
-                    // Random server-side name; the client filename is only stored as display text.
-                    $ext = $file->guessExtension() === 'pdf' ? 'pdf' : 'jpg';
-                    $path = $file->storeAs("claims/{$claim->id}", Str::uuid().'.'.$ext, 'local');
-                    $storedPaths[] = $path;
+                // Receipts tied to a claim line, then the optional "other supporting documents".
+                $filledKeys = collect($result['lines'])->pluck('item_key')->all();
+                $groups = [];
+                foreach ($proofFiles as $key => $files) {
+                    if (in_array($key, $filledKeys, true)) {
+                        $groups[] = [$key, $files];
+                    }
+                }
+                $groups[] = [null, array_values(array_filter((array) $request->file('attachments', [])))];
 
-                    $claim->attachments()->create([
-                        'file_path' => $path,
-                        'original_name' => Str::limit(basename($file->getClientOriginalName()), 200, ''),
-                        'file_type' => $ext,
-                        'file_size' => $file->getSize(),
-                    ]);
+                foreach ($groups as [$itemKey, $files]) {
+                    foreach ($files as $file) {
+                        // Random server-side name; the client filename is only stored as display text.
+                        $ext = $file->guessExtension() === 'pdf' ? 'pdf' : 'jpg';
+                        $path = $file->storeAs("claims/{$claim->id}", Str::uuid().'.'.$ext, 'local');
+                        $storedPaths[] = $path;
+
+                        $claim->attachments()->create([
+                            'item_key' => $itemKey,
+                            'file_path' => $path,
+                            'original_name' => Str::limit(basename($file->getClientOriginalName()), 200, ''),
+                            'file_type' => $ext,
+                            'file_size' => $file->getSize(),
+                        ]);
+                    }
                 }
 
                 return $claim;

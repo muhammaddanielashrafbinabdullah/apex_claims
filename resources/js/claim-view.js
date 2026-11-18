@@ -31,6 +31,17 @@ export default function claimView(claims) {
             const v = this.item(key, 'amount');
             return v === null ? '—' : this.fmt(v);
         },
+        // Receipts attached to one claim line, and the amounts the claimant added up for it.
+        filesOf(key) {
+            return this.selectedClaim ? this.selectedClaim.attachments.filter((a) => a.item_key === key) : [];
+        },
+        breakdownOf(key) {
+            return this.item(key, 'breakdown') || '';
+        },
+        // Files not tied to a line (and every file of older claims).
+        get generalFiles() {
+            return this.selectedClaim ? this.selectedClaim.attachments.filter((a) => !a.item_key) : [];
+        },
         noteOf(key) {
             const d = this.item(key, 'description') || '';
             return d.startsWith('Other: ') ? d.slice(7) : '';

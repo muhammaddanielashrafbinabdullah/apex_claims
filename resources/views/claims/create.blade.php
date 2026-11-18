@@ -129,25 +129,36 @@
                         </td>
 
                         @if ($isMileage)
-                            {{-- 2 Tier name, 3 Rate, 4 Input + km, 5 blank --}}
-                            <td class="px-2 py-2">{{ $row['tier'] }}</td>
-                            <td class="px-2 py-2">{{ $row['rate_text'] }}</td>
-                            <td colspan="2" class="px-2 py-2">
-                                <div class="flex items-center justify-center gap-2">
+                            {{-- 2 Tier name, 3 (blank), 4 Input + km, 5 Price: same columns as the rows above and below --}}
+                            <td class="px-2 py-2 text-slate-700">{{ $row['tier'] }}</td>
+                            <td class="px-2 py-2"></td>
+                            <td class="px-2 py-2">
+                                <div class="flex items-center gap-2">
                                     <input type="number" step="0.01" min="0" max="{{ $row['max'] }}"
                                            name="items[{{ $row['key'] }}]" x-model.number="form.{{ $row['key'] }}" @wheel="$el.blur()"
                                            class="w-28 min-w-0 rounded-none border-slate-500 py-1 text-right">
-                                    <span class="text-slate-600">km</span>
+                                    <span class="shrink-0 font-semibold text-slate-600">km</span>
                                 </div>
                             </td>
+                            <td class="px-2 py-2 text-slate-600">{{ $row['rate_text'] }}</td>
                         @else
                             {{-- 2 Input, 3 Unit, 4 Rate, 5 Rule --}}
                             <td class="px-2 py-2">
-                                <input type="number" step="0.01" min="0" max="{{ $row['max'] }}"
-                                       name="items[{{ $row['key'] }}]" x-model.number="form.{{ $row['key'] }}" @wheel="$el.blur()"
-                                       class="w-full rounded-none border-slate-500 py-1 text-right">
+                                <div class="flex items-center gap-2">
+                                    @if ($row['unit'] === 'RM') <span class="shrink-0 font-semibold text-slate-600">RM</span> @endif
+                                    @if (! empty($row['sum']))
+                                    <input type="text" inputmode="decimal" autocomplete="off" maxlength="255"
+                                           name="items[{{ $row['key'] }}]" x-model="form.{{ $row['key'] }}"
+                                           :class="badAmount('{{ $row['key'] }}') ? 'border-red-500 bg-red-50' : 'border-slate-500'"
+                                           class="min-w-0 flex-1 rounded-none py-1 text-right">
+                                @else
+                                    <input type="number" step="0.01" min="0" max="{{ $row['max'] }}"
+                                           name="items[{{ $row['key'] }}]" x-model.number="form.{{ $row['key'] }}" @wheel="$el.blur()"
+                                           class="min-w-0 flex-1 rounded-none border-slate-500 py-1 text-right">
+                                    @endif
+                                </div>
                             </td>
-                            <td class="px-2 py-2 text-slate-600">{{ $row['unit'] }}</td>
+                            <td class="px-2 py-2 text-slate-600">{{ $row['unit'] === 'RM' ? '' : $row['unit'] }}</td>
                             <td class="px-2 py-2">{{ $row['rate_text'] }}</td>
                             <td class="px-2 py-2 text-slate-600">{{ $row['rule'] }}</td>
                         @endif
@@ -160,6 +171,44 @@
                                  x-text="fmt(amounts.{{ $row['key'] }})">0.00</div>
                         </td>
                     </tr>
+                    @if (! empty($row['proof']))
+                        {{-- Receipt / proof for this line: appears once an amount is entered --}}
+                        <tr x-show="num('{{ $row['key'] }}') > 0" x-cloak class="border-b border-slate-300 bg-slate-50">
+                            <td colspan="7" class="px-3 py-2.5">
+                                <div class="flex flex-wrap items-center gap-2 pl-4">
+                                    <label class="relative inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-slate-500 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-800 shadow-sm transition hover:bg-slate-100">
+                                        <x-heroicon-o-paper-clip class="h-4 w-4" /> Attach receipt / proof
+                                        <input type="file" id="proof_{{ $row['key'] }}" name="proofs[{{ $row['key'] }}][]" multiple
+                                               accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg" class="sr-only" @change="addProofs('{{ $row['key'] }}', $event)">
+                                    </label>
+                                    <span x-show="!(proofs['{{ $row['key'] }}'] || []).length" class="inline-flex items-center gap-1 text-xs font-semibold"
+                                          :class="attempted ? 'text-red-600' : 'text-amber-600'">
+                                        <x-heroicon-s-exclamation-circle class="h-4 w-4" /> Receipt required
+                                    </span>
+                                    <template x-for="(file, i) in (proofs['{{ $row['key'] }}'] || [])" :key="file.name + file.size">
+                                        <span class="flex h-7 max-w-[12.5rem] items-center gap-1 rounded-full border border-slate-400 bg-white pl-1 pr-0.5 text-[11px]">
+                                            <button type="button" @click="openPreview(file)" title="Click to preview this file"
+                                                    class="flex min-w-0 flex-1 items-center gap-2 rounded-full pl-0.5 pr-2 text-left hover:bg-slate-100">
+                                                <span class="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded bg-white">
+                                                    <img x-show="!isPdf(file)" :src="isPdf(file) ? '' : urlFor(file)" alt="" class="h-full w-full object-cover">
+                                                    <span x-show="isPdf(file)" class="flex h-full w-full items-center justify-center bg-red-600 text-[7px] font-bold text-white">PDF</span>
+                                                </span>
+                                                <span x-text="file.name" class="min-w-0 flex-1 truncate"></span>
+                                            </button>
+                                            <button type="button" @click="removeProof('{{ $row['key'] }}', i)" aria-label="Remove file"
+                                                    class="shrink-0 rounded-full p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-900">
+                                                <x-heroicon-s-x-mark class="h-3.5 w-3.5" />
+                                            </button>
+                                        </span>
+                                    </template>
+                                    <span x-show="terms('{{ $row['key'] }}').length > 1" x-cloak class="ml-auto text-xs font-medium text-slate-500">
+                                        <span x-text="terms('{{ $row['key'] }}').length"></span> amounts added
+                                    </span>
+                                </div>
+                                <p x-show="proofError['{{ $row['key'] }}']" x-cloak class="mt-1 pl-4 text-xs text-red-600" x-text="proofError['{{ $row['key'] }}']"></p>
+                            </td>
+                        </tr>
+                    @endif
                 @endforeach
             </tbody>
             <tfoot>
@@ -176,7 +225,7 @@
 
     {{-- Attachments --}}
     <section class="overflow-hidden rounded-lg border-2 border-slate-800 bg-white">
-<div class="bg-slate-800 px-4 py-2 text-left font-bold text-white">Receipts & Proof</div>
+<div class="bg-slate-800 px-4 py-2 text-left font-bold text-white">Other Supporting Documents</div>
 <div class="p-6">
 
         <div class="flex items-center gap-3">
@@ -187,7 +236,7 @@
             </label>
             <span class="text-sm text-slate-500" x-text="fileStatus">No file chosen</span>
         </div>
-        <p class="mt-2 text-xs text-slate-500">PDF or JPG, up to 10 MB each. Attach as many files as needed.</p>
+        <p class="mt-2 text-xs text-slate-500">Optional, for anything that does not belong to one line above (for example an approval email). PDF or JPG, up to 10 MB each.</p>
 
         <p x-show="fileError" x-cloak x-text="fileError" class="mt-2 text-sm text-red-600"></p>
 

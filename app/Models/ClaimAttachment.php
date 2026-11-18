@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ClaimAttachment extends Model
 {
-    protected $fillable = ['claim_id', 'file_path', 'original_name', 'file_type', 'file_size'];
+    protected $fillable = ['claim_id', 'item_key', 'file_path', 'original_name', 'file_type', 'file_size'];
 
     public function claim(): BelongsTo
     {

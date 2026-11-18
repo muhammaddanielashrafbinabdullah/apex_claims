@@ -27,6 +27,7 @@ $receipt = fn (string $key, string $title, ?string $sub = null) => [
     'type' => 'direct', 'layout' => 'standard',
     'unit' => 'RM', 'rate_text' => 'At cost', 'rule' => 'Receipt required',
     'max' => 9999999,
+    'proof' => true, // a receipt / proof file is required for this line
 ];
 
 $hardship = fn (string $key, string $group, ?string $title, float $rate, int $hours) => [
@@ -82,6 +83,7 @@ return [
         ],
         [
             'key' => 'lodging_receipt_nights', 'group' => 'Lodging Allowance', 'label' => 'Lodging with receipts',
+            'proof' => true,
             'title' => 'Lodging with receipts', 'sub' => null,
             'type' => 'per_unit', 'layout' => 'standard', 'rate' => 200,
             'unit' => 'nights', 'rate_text' => 'Max RM 200.00', 'rule' => 'per night', 'max' => 31,
